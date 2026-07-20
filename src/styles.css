@@ -1,12 +1,10 @@
-@import "tailwindcss" source(none);
+@import "tailwindcss";
 @source "../src";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
-/* ==============================================================
-   ELEVATE ASSESS — Light-mode enterprise design system
-   ============================================================== */
+
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
@@ -75,8 +73,8 @@
   --popover: #ffffff;
   --popover-foreground: #1a1a1a;
 
-  --primary: #d97757;
-  --primary-hover: #c4653f;
+  --primary: #4b5563;
+  --primary-hover: #374151;
   --primary-foreground: #ffffff;
 
   --secondary: #f5f5f7;
@@ -99,13 +97,14 @@
   --border: rgba(15, 23, 42, 0.08);
   --border-strong: rgba(15, 23, 42, 0.14);
   --input: rgba(15, 23, 42, 0.14);
-  --ring: #d97757;
+  --ring: #4b5563;
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
   }
+
   html,
   body {
     background-color: var(--color-background);
@@ -115,12 +114,24 @@
     text-rendering: optimizeLegibility;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
-  h1, h2, h3, h4, h5 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
-  .font-display { font-family: var(--font-display); }
-  .font-mono { font-family: var(--font-mono); }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
   .micro-label {
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -138,8 +149,8 @@
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-ambient);
   transition: transform 220ms var(--ease-out-soft),
-              box-shadow 220ms var(--ease-out-soft),
-              border-color 220ms var(--ease-out-soft);
+    box-shadow 220ms var(--ease-out-soft),
+    border-color 220ms var(--ease-out-soft);
 }
 
 @utility card-hover {
@@ -156,9 +167,9 @@
 
 @utility mesh-bg {
   background:
-    radial-gradient(60% 40% at 20% 10%, rgba(217, 119, 87, 0.06), transparent 60%),
-    radial-gradient(50% 40% at 80% 20%, rgba(66, 133, 244, 0.05), transparent 60%),
-    radial-gradient(40% 30% at 60% 90%, rgba(124, 58, 237, 0.04), transparent 60%),
+    radial-gradient(60% 40% at 20% 10%, rgba(75, 85, 99, 0.06), transparent 60%),
+    radial-gradient(50% 40% at 80% 20%, rgba(107, 114, 128, 0.05), transparent 60%),
+    radial-gradient(40% 30% at 60% 90%, rgba(55, 65, 81, 0.04), transparent 60%),
     #ffffff;
 }
 
@@ -170,47 +181,111 @@
 /* ---------- Animations ---------- */
 
 @keyframes beam-travel {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
+
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
+
 @keyframes scan-line {
-  0%, 100% { transform: translateY(0); opacity: 0; }
-  10% { opacity: 1; }
-  50% { transform: translateY(180px); opacity: 1; }
-  90% { opacity: 1; }
+
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  50% {
+    transform: translateY(180px);
+    opacity: 1;
+  }
+
+  90% {
+    opacity: 1;
+  }
 }
+
 @keyframes fade-up {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 @keyframes soft-pulse {
-  0%, 100% { opacity: 0.7; }
-  50% { opacity: 1; }
+
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+
+  50% {
+    opacity: 1;
+  }
 }
+
 @keyframes sparkle {
-  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
 }
+
 @keyframes mesh-drift {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50% { transform: translate(2%, -1%) scale(1.05); }
+
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+
+  50% {
+    transform: translate(2%, -1%) scale(1.05);
+  }
 }
 
 @utility animate-fade-up {
   animation: fade-up 400ms var(--ease-out-soft) both;
 }
+
 @utility animate-shimmer {
   background: linear-gradient(90deg, #f0f0f0 0%, #fafafa 40%, #ffffff 50%, #fafafa 60%, #f0f0f0 100%);
   background-size: 200% 100%;
   animation: shimmer 1.5s linear infinite;
 }
+
 @utility animate-scan-line {
   animation: scan-line 2.4s var(--ease-out-soft) infinite;
 }
+
 @utility animate-mesh-drift {
   animation: mesh-drift 80s ease-in-out infinite;
 }

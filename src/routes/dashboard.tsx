@@ -13,12 +13,12 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function Dashboard() {
-  const { authed, user, history, reset } = useSession();
+  const { authed, user, history, reset, stats } = useSession();
   const nav = useNavigate();
   useEffect(() => { if (!authed) nav({ to: "/login" }); }, [authed, nav]);
 
-  const avg = history.length ? Math.round(history.reduce((a, h) => a + h.score, 0) / history.length) : 0;
-  const bestTier = history[0]?.tier ?? "—";
+  const latestSkill = history[0]?.skill ?? "Python";
+  const latestType = history[0]?.testType ?? "Vibe Code";
 
   return (
     <AppShell>
@@ -34,11 +34,12 @@ function Dashboard() {
           </Link>
         </div>
 
+        {/* Metrics from real stats */}
         <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
-          <Metric icon={TrendingUp} label="Average score" value={`${avg}`} suffix="/ 100" />
-          <Metric icon={Trophy} label="Best tier" value={bestTier} />
-          <Metric icon={Flame} label="Assessments" value={String(history.length)} />
-          <Metric icon={Clock} label="Time invested" value={`${history.length * 12}m`} />
+          <Metric icon={TrendingUp} label="Average score" value={`${stats.averageScore}`} suffix="/ 100" />
+          <Metric icon={Trophy} label="Best badge" value={stats.currentBadge === "None" ? "—" : stats.currentBadge} />
+          <Metric icon={Flame} label="Assessments" value={String(stats.totalTests)} />
+          <Metric icon={Clock} label="Time invested" value={`${stats.totalTests * 12}m`} />
         </div>
 
         <div className="mt-8 grid gap-4 md:grid-cols-3">
@@ -46,17 +47,23 @@ function Dashboard() {
             <BorderBeam duration={7} />
             <div className="relative">
               <div className="micro-label">AI recommendation</div>
-              <h2 className="mt-2 font-display text-2xl font-bold">Try Python · Vibe Code next.</h2>
+              <h2 className="mt-2 font-display text-2xl font-bold">
+                {history.length > 0 ? `Try ${latestSkill} · ${latestType} next.` : "Start your first assessment."}
+              </h2>
               <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-                Based on your last three sessions, conversational coding is where you're growing fastest. We've queued 10 fresh questions.
+                {history.length > 0
+                  ? `Based on your last ${Math.min(history.length, 3)} session${history.length > 1 ? "s" : ""}, we recommend continuing to build on your ${latestSkill} skills. We've queued 10 fresh questions.`
+                  : "Take your first assessment to get personalised AI-generated questions and receive detailed feedback on your performance."}
               </p>
               <div className="mt-6 grid grid-cols-3 gap-3">
                 {["Reasoning", "Depth", "Communication"].map((t, i) => (
                   <div key={t} className="rounded-lg border border-border bg-white p-3">
                     <div className="text-[11px] text-muted-foreground">{t}</div>
-                    <div className="mt-1 font-display text-lg font-bold">{[avg + 4, avg - 2, avg + 8][i]}</div>
+                    <div className="mt-1 font-display text-lg font-bold">
+                      {stats.averageScore > 0 ? [stats.averageScore + 4, Math.max(0, stats.averageScore - 2), stats.averageScore + 8][i] : ["-", "-", "-"][i]}
+                    </div>
                     <div className="mt-1 h-1 rounded-full bg-surface-2">
-                      <div className="h-1 rounded-full bg-primary" style={{ width: `${Math.min(100, [avg + 4, avg - 2, avg + 8][i] || 40)}%` }} />
+                      <div className="h-1 rounded-full bg-primary" style={{ width: `${Math.min(100, (stats.averageScore > 0 ? [stats.averageScore + 4, Math.max(0, stats.averageScore - 2), stats.averageScore + 8][i] : 0) || 0)}%` }} />
                     </div>
                   </div>
                 ))}
@@ -82,7 +89,9 @@ function Dashboard() {
                     <div className="text-[11px] text-muted-foreground">{new Date(h.date).toLocaleDateString()}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">{h.tier}</span>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                      {h.tier === "None" ? "No Badge" : h.tier}
+                    </span>
                     <span className="font-display text-base font-bold">{h.score}</span>
                   </div>
                 </div>
@@ -128,15 +137,15 @@ function SparkChart({ data }: { data: number[] }) {
     <svg viewBox={`0 0 ${w} ${h}`} className="h-36 w-full">
       <defs>
         <linearGradient id="area-g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(217,119,87,0.25)" />
-          <stop offset="100%" stopColor="rgba(217,119,87,0)" />
+          <stop offset="0%" stopColor="rgba(75,85,99,0.25)" />
+          <stop offset="100%" stopColor="rgba(75,85,99,0)" />
         </linearGradient>
       </defs>
       <path d={area} fill="url(#area-g)" />
-      <path d={path} fill="none" stroke="#d97757" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+      <path d={path} fill="none" stroke="#4b5563" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
         strokeDasharray="1000" strokeDashoffset="0"
         style={{ animation: "draw 800ms cubic-bezier(0.22,1,0.36,1) both" }} />
-      {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3" fill="#d97757" />)}
+      {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="3" fill="#4b5563" />)}
       <style>{`@keyframes draw { from { stroke-dashoffset: 1000 } to { stroke-dashoffset: 0 } }`}</style>
     </svg>
   );

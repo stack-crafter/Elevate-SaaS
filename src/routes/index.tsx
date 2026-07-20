@@ -8,7 +8,7 @@ import { MagneticButton } from "@/components/MagneticButton";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Elevate Assess — AI Technical Assessments for the Enterprise" },
+      { title: "Elevate" },
       { name: "description", content: "The calm, precise assessment platform used by Fortune 500s, universities, and recruiters." },
       { property: "og:title", content: "Elevate Assess" },
       { property: "og:description", content: "Stripe for technical assessments, reimagined in daylight." },
@@ -22,10 +22,17 @@ function Landing() {
     <div className="relative min-h-screen bg-background text-foreground">
       <header className="relative z-20 mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_4px_12px_rgba(217,119,87,0.35)]">
-            <Sparkles className="h-4 w-4" />
+          <div className="h-8 w-8 overflow-hidden rounded-md">
+            <img
+              src="/elogo.png"
+              alt="Elevate Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
-          <span className="font-display text-[15px] font-bold tracking-tight">Elevate Assess</span>
+
+          <span className="font-display text-[15px] font-bold tracking-tight">
+            Elevate
+          </span>
         </div>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
           <a href="#features" className="hover:text-foreground">Product</a>
@@ -51,7 +58,7 @@ function Landing() {
           <h1 className="font-display text-5xl font-extrabold leading-[1.05] tracking-tight md:text-7xl">
             Technical assessments,{" "}
             <span className="relative inline-block">
-              <span className="bg-gradient-to-r from-[#d97757] via-[#c4653f] to-[#7c3aed] bg-clip-text text-transparent">reimagined in daylight.</span>
+              <span className="bg-gradient-to-r from-[#6b7280] via-[#4b5563] to-[#1f2937] bg-clip-text text-transparent">reimagined in daylight.</span>
             </span>
           </h1>
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground md:text-xl">
@@ -91,15 +98,15 @@ function Landing() {
                     </div>
                   </div>
                   <div className="border-l border-border bg-[#fbfaf7] p-4 text-left font-mono text-[12.5px] leading-6">
-<pre className="whitespace-pre text-foreground/90"><span className="text-muted-foreground">1</span>  <span className="text-[#7c3aed]">def</span> <span className="text-[#4285f4]">find_duplicates</span>(rows):
-<span className="text-muted-foreground">2</span>      seen = <span className="text-[#0f9d58]">set</span>()
-<span className="text-muted-foreground">3</span>      dupes = []
-<span className="text-muted-foreground">4</span>      <span className="text-[#7c3aed]">for</span> r <span className="text-[#7c3aed]">in</span> rows:
-<span className="text-muted-foreground">5</span>          key = r.id
-<span className="text-muted-foreground">6</span>          <span className="text-[#7c3aed]">if</span> key <span className="text-[#7c3aed]">in</span> seen:
-<span className="text-muted-foreground">7</span>              dupes.append(r)
-<span className="text-muted-foreground">8</span>          seen.add(key)
-<span className="text-muted-foreground">9</span>      <span className="text-[#7c3aed]">return</span> dupes</pre>
+                    <pre className="whitespace-pre text-foreground/90"><span className="text-muted-foreground">1</span>  <span className="text-[#7c3aed]">def</span> <span className="text-[#4285f4]">find_duplicates</span>(rows):
+                      <span className="text-muted-foreground">2</span>      seen = <span className="text-[#0f9d58]">set</span>()
+                      <span className="text-muted-foreground">3</span>      dupes = []
+                      <span className="text-muted-foreground">4</span>      <span className="text-[#7c3aed]">for</span> r <span className="text-[#7c3aed]">in</span> rows:
+                      <span className="text-muted-foreground">5</span>          key = r.id
+                      <span className="text-muted-foreground">6</span>          <span className="text-[#7c3aed]">if</span> key <span className="text-[#7c3aed]">in</span> seen:
+                      <span className="text-muted-foreground">7</span>              dupes.append(r)
+                      <span className="text-muted-foreground">8</span>          seen.add(key)
+                      <span className="text-muted-foreground">9</span>      <span className="text-[#7c3aed]">return</span> dupes</pre>
                   </div>
                 </div>
               </div>
@@ -153,7 +160,7 @@ function Landing() {
             <h3 className="mt-2 font-display text-xl font-bold">Monaco, tuned for daylight.</h3>
             <div className="mt-4 rounded-md border border-border bg-[#fbfaf7] p-3 font-mono text-[11.5px] leading-5">
               <div><span className="text-[#7c3aed]">const</span> score = <span className="text-[#4285f4]">evaluate</span>(sub);</div>
-              <div><span className="text-[#7c3aed]">if</span> (score &gt; <span className="text-[#0f9d58]">85</span>) grant(<span className="text-[#d97757]">"gold"</span>);</div>
+              <div><span className="text-[#7c3aed]">if</span> (score &gt; <span className="text-[#0f9d58]">85</span>) grant(<span className="text-[#4b5563]">"gold"</span>);</div>
             </div>
           </BentoCard>
 
@@ -218,8 +225,17 @@ function Landing() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded bg-primary text-primary-foreground"><Sparkles className="h-3 w-3" /></div>
-            <span className="font-display font-bold text-foreground">Elevate Assess</span>
+            <div className="h-6 w-6 overflow-hidden rounded">
+              <img
+                src="/elogo.png"
+                alt="Elevate Logo"
+                className="h-full w-full object-contain"
+              />
+            </div>
+
+            <span className="font-display font-bold text-foreground">
+              Elevate
+            </span>
           </div>
           <div>© 2026 Elevate Labs. Built with care.</div>
         </div>
@@ -258,8 +274,8 @@ function MiniRadar() {
           fill="none" stroke="rgba(15,23,42,0.08)" strokeWidth="1"
         />
       ))}
-      <path d={path} fill="rgba(217,119,87,0.18)" stroke="#d97757" strokeWidth="1.5" />
-      {coords.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="2.5" fill="#d97757" />)}
+      <path d={path} fill="rgba(75,85,99,0.18)" stroke="#4b5563" strokeWidth="1.5" />
+      {coords.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="2.5" fill="#4b5563" />)}
     </svg>
   );
 }

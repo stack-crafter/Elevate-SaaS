@@ -18,10 +18,17 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-surface-1">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface-nav/80 backdrop-blur-xl md:flex">
         <div className="flex items-center gap-2 px-5 py-6">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-[0_4px_12px_rgba(217,119,87,0.35)]">
-            <Sparkles className="h-4 w-4" />
+          <div className="h-8 w-8 overflow-hidden rounded-md">
+            <img
+              src="/elogo.png"
+              alt="Elevate Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
-          <div className="font-display text-[15px] font-bold tracking-tight">Elevate</div>
+
+          <div className="font-display text-[15px] font-bold tracking-tight">
+            Elevate
+          </div>
         </div>
         <nav className="flex-1 px-3 py-2">
           {nav.map((n) => {

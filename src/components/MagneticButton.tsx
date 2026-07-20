@@ -36,7 +36,7 @@ export function MagneticButton({
     "relative inline-flex items-center justify-center overflow-hidden rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-150 active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none";
   const styles: Record<Variant, string> = {
     primary:
-      "bg-primary text-primary-foreground shadow-[0_8px_24px_rgba(217,119,87,0.25)] hover:bg-primary-hover hover:shadow-[0_12px_32px_rgba(217,119,87,0.35)]",
+      "bg-gradient-to-r from-[#4b5563] to-[#1f2937] text-white shadow-[0_8px_24px_rgba(31,41,55,0.25)] hover:from-[#374151] hover:to-[#111827] hover:shadow-[0_12px_32px_rgba(31,41,55,0.35)]",
     secondary:
       "bg-white text-foreground border border-border hover:border-border-strong hover:bg-surface-hover",
     ghost: "text-foreground hover:bg-surface-hover",
@@ -62,7 +62,7 @@ export function MagneticButton({
           className="pointer-events-none absolute rounded-full"
           style={{
             left: r.x, top: r.y, width: 8, height: 8,
-            background: variant === "primary" ? "rgba(255,255,255,0.5)" : "rgba(217,119,87,0.25)",
+            background: variant === "primary" ? "rgba(255,255,255,0.5)" : "rgba(75,85,99,0.25)",
             transform: "translate(-50%, -50%) scale(1)",
             animation: "ripple 600ms ease-out forwards",
           }}

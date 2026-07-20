@@ -1,68 +1,239 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { AIQuestion, EvaluationResult } from "./openrouter";
 
-export type Skill = "java" | "python" | "cpp";
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type Skill =
+  | "java"
+  | "python"
+  | "cpp"
+  | "flutter"
+  | "react"
+  | "nodejs"
+  | "ai"
+  | "ml"
+  | "datascience";
+
 export type TestType = "pure" | "vibe" | "experience";
 
-export interface SessionState {
-  authed: boolean;
-  user: { name: string; email: string } | null;
-  skill: Skill | null;
-  testType: TestType | null;
-  answers: (number | string | null)[];
-  score: number | null;
-  history: { skill: Skill; testType: TestType; score: number; date: string; tier: string }[];
-  login: (user: { name: string; email: string }) => void;
-  logout: () => void;
-  setSkill: (s: Skill) => void;
-  setTestType: (t: TestType) => void;
-  setAnswer: (i: number, v: number | string) => void;
-  reset: () => void;
-  finalize: (score: number) => string;
+export type BadgeTier = "Gold" | "Silver" | "Bronze" | "None";
+
+export interface Statistics {
+  totalTests: number;
+  totalPassed: number;
+  totalFailed: number;
+  highestScore: number;
+  averageScore: number;
+  currentBadge: BadgeTier;
+  recommendedJobType: string;
 }
 
-function tierFor(score: number) {
-  if (score >= 90) return "Platinum";
-  if (score >= 75) return "Gold";
-  if (score >= 55) return "Silver";
-  return "Bronze";
+export interface HistoryEntry {
+  skill: Skill;
+  testType: TestType;
+  score: number;
+  date: string;
+  tier: BadgeTier;
+  recommendedJobType: string;
+  feedback?: EvaluationResult | null;
 }
+
+export interface SessionState {
+  // Auth
+  authed: boolean;
+  user: { name: string; email: string } | null;
+  apiKey: string | null;
+
+  // Current test selection
+  skill: Skill | null;
+  testType: TestType | null;
+
+  // AI-generated questions for current test
+  questions: AIQuestion[];
+  questionsLoading: boolean;
+  questionsError: string | null;
+
+  // Answers: indexed by question position, value depends on type
+  answers: (number | string | null)[];
+
+  // Current test score & AI evaluation result
+  score: number | null;
+  aiFeedback: EvaluationResult | null;
+
+  // History (persisted)
+  history: HistoryEntry[];
+
+  // Aggregate statistics (persisted)
+  stats: Statistics;
+
+  // ─── Actions ────────────────────────────────────────────────────────────────
+  login: (user: { name: string; email: string }) => void;
+  logout: () => void;
+  setApiKey: (key: string) => void;
+
+  setSkill: (s: Skill) => void;
+  setTestType: (t: TestType) => void;
+
+  setQuestions: (qs: AIQuestion[]) => void;
+  setQuestionsLoading: (v: boolean) => void;
+  setQuestionsError: (e: string | null) => void;
+
+  setAnswer: (i: number, v: number | string) => void;
+
+  /** Called after AI evaluation completes. Returns the badge tier. */
+  finalize: (score: number, feedback?: EvaluationResult | null) => BadgeTier;
+
+  /** Reset current test state (keep history + stats) */
+  reset: () => void;
+}
+
+// ─── Badge Helpers ────────────────────────────────────────────────────────────
+
+export function tierFor(score: number): BadgeTier {
+  if (score >= 90) return "Gold";
+  if (score >= 75) return "Silver";
+  if (score >= 50) return "Bronze";
+  return "None";
+}
+
+export function jobFor(tier: BadgeTier): string {
+  switch (tier) {
+    case "Gold":   return "Senior Employee";
+    case "Silver": return "Junior Employee";
+    case "Bronze": return "Internship";
+    default:       return "Needs Improvement";
+  }
+}
+
+// ─── Store ────────────────────────────────────────────────────────────────────
+
+const DEFAULT_STATS: Statistics = {
+  totalTests: 0,
+  totalPassed: 0,
+  totalFailed: 0,
+  highestScore: 0,
+  averageScore: 0,
+  currentBadge: "None",
+  recommendedJobType: "Needs Improvement",
+};
 
 export const useSession = create<SessionState>()(
   persist(
     (set, get) => ({
       authed: false,
       user: null,
+      apiKey: null,
+
       skill: null,
       testType: null,
+
+      questions: [],
+      questionsLoading: false,
+      questionsError: null,
+
       answers: Array(10).fill(null),
+
       score: null,
+      aiFeedback: null,
+
       history: [],
+      stats: { ...DEFAULT_STATS },
+
+      // ─── Auth ──────────────────────────────────────────────────────────────
       login: (user) => set({ authed: true, user }),
       logout: () => set({ authed: false, user: null }),
-      setSkill: (s) => set({ skill: s }),
-      setTestType: (t) => set({ testType: t }),
+      setApiKey: (key) => {
+        localStorage.setItem("elevate_openrouter_key", key);
+        set({ apiKey: key });
+      },
+
+      // ─── Test Setup ────────────────────────────────────────────────────────
+      setSkill: (s) =>
+        set({
+          skill: s,
+          questions: [],
+          questionsLoading: false,
+          questionsError: null,
+          answers: Array(10).fill(null),
+          score: null,
+          aiFeedback: null,
+        }),
+      setTestType: (t) =>
+        set({
+          testType: t,
+          questions: [],
+          questionsLoading: false,
+          questionsError: null,
+          answers: Array(10).fill(null),
+          score: null,
+          aiFeedback: null,
+        }),
+
+      // ─── Questions ─────────────────────────────────────────────────────────
+      setQuestions: (qs) => set({ questions: qs }),
+      setQuestionsLoading: (v) => set({ questionsLoading: v }),
+      setQuestionsError: (e) => set({ questionsError: e }),
+
+      // ─── Answers ───────────────────────────────────────────────────────────
       setAnswer: (i, v) => {
         const a = [...get().answers];
         a[i] = v;
         set({ answers: a });
       },
-      reset: () => set({ skill: null, testType: null, answers: Array(10).fill(null), score: null }),
-      finalize: (score) => {
-        const t = tierFor(score);
-        const s = get();
-        if (s.skill && s.testType) {
-          set({
-            score,
-            history: [
-              { skill: s.skill, testType: s.testType, score, date: new Date().toISOString(), tier: t },
-              ...s.history,
-            ].slice(0, 20),
-          });
-        }
-        return t;
+
+      // ─── Finalize ──────────────────────────────────────────────────────────
+      finalize: (score, feedback = null) => {
+        const { skill, testType, history, stats } = get();
+        const tier = tierFor(score);
+        const job = jobFor(tier);
+
+        const entry: HistoryEntry = {
+          skill: skill!,
+          testType: testType!,
+          score,
+          date: new Date().toISOString(),
+          tier,
+          recommendedJobType: job,
+          feedback,
+        };
+
+        const allScores = [score, ...history.map((h) => h.score)];
+        const avg = Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length);
+
+        const newStats: Statistics = {
+          totalTests: stats.totalTests + 1,
+          totalPassed: stats.totalPassed + (score >= 50 ? 1 : 0),
+          totalFailed: stats.totalFailed + (score < 50 ? 1 : 0),
+          highestScore: Math.max(stats.highestScore, score),
+          averageScore: avg,
+          currentBadge: tier,
+          recommendedJobType: job,
+        };
+
+        set({
+          score,
+          aiFeedback: feedback,
+          history: [entry, ...history].slice(0, 20),
+          stats: newStats,
+        });
+
+        return tier;
       },
+
+      // ─── Reset (keep history + stats) ─────────────────────────────────────
+      reset: () =>
+        set({
+          skill: null,
+          testType: null,
+          questions: [],
+          questionsLoading: false,
+          questionsError: null,
+          answers: Array(10).fill(null),
+          score: null,
+          aiFeedback: null,
+        }),
     }),
-    { name: "elevate-assess-session" },
+    { name: "elevate-assess-session-v2" },
   ),
 );

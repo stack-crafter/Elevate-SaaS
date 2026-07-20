@@ -61,22 +61,37 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
+    title: "Elevate",
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Elevate Assess — AI-Powered Technical Assessments" },
-      { name: "description", content: "Enterprise-grade AI assessment platform for Fortune 500s, universities, and recruiters. Precise, humane, calm." },
-      { property: "og:title", content: "Elevate Assess — AI-Powered Technical Assessments" },
-      { property: "og:description", content: "Stripe for technical assessments, reimagined in daylight." },
+      {
+        name: "description",
+        content:
+          "Enterprise-grade AI assessment platform for Fortune 500s, universities, and recruiters.",
+      },
+      { property: "og:title", content: "Elevate" },
+      { property: "og:description", content: "AI-powered technical assessments" },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+
+      { rel: "icon", href: "/elogo.png?v=1", type: "image/png" },
+      { rel: "shortcut icon", href: "/elogo.png?v=1" },
+      { rel: "apple-touch-icon", href: "/elogo.png?v=1" },
+
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap",
+      },
     ],
   }),
   shellComponent: RootShell,

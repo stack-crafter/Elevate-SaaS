@@ -1,8 +1,7 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Trophy, ArrowRight } from "lucide-react";
-import { useSession } from "@/lib/store";
-import { getQuestions } from "@/lib/questions";
+import { CheckCircle2, XCircle, Trophy, ArrowRight, TrendingUp, Target, Lightbulb, AlertCircle } from "lucide-react";
+import { useSession, tierFor, jobFor } from "@/lib/store";
 import { MagneticButton } from "@/components/MagneticButton";
 
 export const Route = createFileRoute("/results")({
@@ -10,15 +9,22 @@ export const Route = createFileRoute("/results")({
   component: ResultsPage,
 });
 
+// Badge images from public/badges/
+const BADGE_IMG: Record<string, string | null> = {
+  Gold:   "/badges/gold.png",
+  Silver: "/badges/silver.png",
+  Bronze: "/badges/bronze.png",
+  None:   null,
+};
+
 function ResultsPage() {
-  const { skill, testType, answers, score, authed } = useSession();
+  const { skill, testType, answers, score, aiFeedback, authed, stats, history, questions } = useSession();
   const nav = useNavigate();
   useEffect(() => {
     if (!authed) nav({ to: "/login" });
     else if (score === null) nav({ to: "/dashboard" });
   }, [authed, score, nav]);
 
-  const qs = skill && testType ? getQuestions(skill, testType) : [];
   const [display, setDisplay] = useState(0);
   useEffect(() => {
     if (score === null) return;
@@ -35,22 +41,36 @@ function ResultsPage() {
     return () => cancelAnimationFrame(raf);
   }, [score]);
 
-  if (score === null || !qs.length) return null;
+  if (score === null) return null;
 
-  const correctCount = qs.reduce((acc, q, i) => acc + (answers[i] === q.correct ? 1 : 0), 0);
+  const tier = tierFor(score);
+  const job = jobFor(tier);
+  const badgeImg = BADGE_IMG[tier] ?? null;
+
   const R = 78;
   const C = 2 * Math.PI * R;
   const dash = (display / 100) * C;
 
+  // MCQ breakdown from AI questions
+  const mcqQuestions = questions.filter((q) => q.type === "mcq");
+  const mcqCorrect = mcqQuestions.filter((q, qi) => {
+    const globalIdx = questions.indexOf(q);
+    return answers[globalIdx] === q.correct;
+  }).length;
+
+  const questionScores = aiFeedback?.questionScores ?? [];
+
   return (
     <div className="min-h-screen bg-surface-1">
       <div className="mx-auto max-w-4xl px-6 py-14">
+        {/* ─── Hero ─────────────────────────────────────────────────────────── */}
         <div className="text-center animate-fade-up">
           <div className="micro-label">Assessment complete</div>
           <h1 className="mt-2 font-display text-4xl font-bold tracking-tight md:text-5xl">Nicely done.</h1>
           <p className="mt-3 text-lg text-muted-foreground">Here's how this session broke down.</p>
         </div>
 
+        {/* ─── Score + Stats ────────────────────────────────────────────────── */}
         <div className="mt-12 grid gap-6 md:grid-cols-[auto_1fr]">
           <div className="surface-card mx-auto flex h-64 w-64 items-center justify-center p-6">
             <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
@@ -64,8 +84,8 @@ function ResultsPage() {
               />
               <defs>
                 <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#d97757" />
-                  <stop offset="100%" stopColor="#7c3aed" />
+                  <stop offset="0%" stopColor="#6b7280" />
+                  <stop offset="100%" stopColor="#1f2937" />
                 </linearGradient>
               </defs>
               <g transform="rotate(90 100 100)">
@@ -76,42 +96,154 @@ function ResultsPage() {
           </div>
 
           <div className="grid gap-3 self-center">
-            <Stat label="Correct" value={`${correctCount} / ${qs.length}`} accent="#0f9d58" />
             <Stat label="Skill" value={skill!} />
             <Stat label="Format" value={`${testType} code`} />
-            <Stat label="Time" value="8m 42s" />
+            {mcqQuestions.length > 0 && (
+              <Stat label="MCQ Correct" value={`${mcqCorrect} / ${mcqQuestions.length}`} accent="#0f9d58" />
+            )}
+            {/* Badge */}
+            <div className="surface-card flex items-center justify-between p-4">
+              <span className="micro-label">Badge Earned</span>
+              <div className="flex items-center gap-2">
+                {badgeImg ? (
+                  <img src={badgeImg} alt={`${tier} badge`} className="h-8 w-8 object-contain drop-shadow" />
+                ) : (
+                  <Trophy className="h-5 w-5 text-muted-foreground" />
+                )}
+                <span className="font-display text-sm font-bold">
+                  {tier === "None" ? "No Badge" : `${tier} Badge`}
+                </span>
+              </div>
+            </div>
+            {/* Job */}
+            <div className="surface-card flex items-center justify-between p-4">
+              <span className="micro-label">Recommended For</span>
+              <span className="font-display text-base font-bold text-foreground">{job}</span>
+            </div>
           </div>
         </div>
 
+        {/* ─── AI Feedback ──────────────────────────────────────────────────── */}
+        {aiFeedback && (
+          <div className="mt-12 space-y-4 animate-fade-up">
+            <h2 className="font-display text-xl font-bold">AI Feedback</h2>
+
+            {/* Overall */}
+            <div className="surface-card p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Target className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Overall Assessment</div>
+                  <p className="text-sm text-foreground leading-relaxed">{aiFeedback.overallFeedback}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Strengths & Weaknesses */}
+            <div className="grid gap-4 md:grid-cols-2">
+              {aiFeedback.strengths.length > 0 && (
+                <div className="surface-card p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <TrendingUp className="h-4 w-4 text-success" />
+                    <div className="text-xs font-semibold uppercase tracking-wider text-success">Strengths</div>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {aiFeedback.strengths.map((s, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-success" />
+                        {s}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {aiFeedback.weaknesses.length > 0 && (
+                <div className="surface-card p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb className="h-4 w-4 text-primary" />
+                    <div className="text-xs font-semibold uppercase tracking-wider text-primary">Areas to Improve</div>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {aiFeedback.weaknesses.map((w, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-foreground">
+                        <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                        {w}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ─── Question Breakdown ───────────────────────────────────────────── */}
         <div className="mt-12">
           <h2 className="font-display text-xl font-bold">Question breakdown</h2>
           <div className="mt-4 space-y-2">
-            {qs.map((q, i) => {
-              const correct = answers[i] === q.correct;
+            {questions.map((q, qi) => {
+              const qs = questionScores.find((s) => s.questionId === q.id);
+              const ans = answers[qi];
+
+              let isCorrect: boolean | null = null;
+              if (q.type === "mcq") {
+                isCorrect = ans === q.correct;
+              } else if (qs) {
+                isCorrect = qs.score >= 6;
+              }
+
               return (
                 <div
                   key={q.id}
-                  className="surface-card flex items-center gap-3 p-4 animate-fade-up"
-                  style={{ animationDelay: `${Math.min(i, 8) * 50}ms` }}
+                  className="surface-card p-4 animate-fade-up"
+                  style={{ animationDelay: `${Math.min(qi, 8) * 50}ms` }}
                 >
-                  {correct ? (
-                    <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
-                  ) : (
-                    <XCircle className="h-5 w-5 shrink-0 text-danger" />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Q{i + 1}</div>
-                    <div className="mt-0.5 truncate text-sm text-foreground">{q.prompt}</div>
+                  <div className="flex items-start gap-3">
+                    {isCorrect === true ? (
+                      <CheckCircle2 className="h-5 w-5 mt-0.5 shrink-0 text-success" />
+                    ) : isCorrect === false ? (
+                      <XCircle className="h-5 w-5 mt-0.5 shrink-0 text-danger" />
+                    ) : (
+                      <AlertCircle className="h-5 w-5 mt-0.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Q{qi + 1} · <span className="capitalize">{q.type}</span>
+                          {qs && <span className="ml-1 text-foreground">· {qs.score}/10</span>}
+                        </div>
+                        {isCorrect !== null && (
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${isCorrect ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
+                            {isCorrect ? "Correct" : "Needs work"}
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-0.5 text-sm text-foreground line-clamp-2">{q.prompt}</div>
+                      {qs?.feedback && (
+                        <div className="mt-1.5 text-xs text-muted-foreground italic">{qs.feedback}</div>
+                      )}
+                    </div>
                   </div>
-                  <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${correct ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
-                    {correct ? "Correct" : "Missed"}
-                  </span>
                 </div>
               );
             })}
           </div>
         </div>
 
+        {/* ─── Achievements Summary ─────────────────────────────────────────── */}
+        <div className="mt-12 surface-card p-6 animate-fade-up">
+          <h2 className="font-display text-xl font-bold mb-4">Achievements</h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <AchievStat label="Total Tests" value={String(stats.totalTests)} />
+            <AchievStat label="Highest Score" value={String(stats.highestScore)} />
+            <AchievStat label="Avg Score" value={String(stats.averageScore)} />
+            <AchievStat label="Tests Passed" value={String(stats.totalPassed)} />
+          </div>
+        </div>
+
+        {/* ─── Actions ──────────────────────────────────────────────────────── */}
         <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
           <Link to="/dashboard"><MagneticButton variant="secondary">Back to dashboard</MagneticButton></Link>
           <Link to="/badge"><MagneticButton><Trophy className="h-4 w-4" /> View badge <ArrowRight className="h-4 w-4" /></MagneticButton></Link>
@@ -126,6 +258,15 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
     <div className="surface-card flex items-center justify-between p-4">
       <span className="micro-label">{label}</span>
       <span className="font-display text-lg font-bold capitalize" style={{ color: accent }}>{value}</span>
+    </div>
+  );
+}
+
+function AchievStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface-1 p-4 text-center">
+      <div className="font-display text-2xl font-extrabold text-foreground">{value}</div>
+      <div className="mt-1 text-[11px] font-medium text-muted-foreground">{label}</div>
     </div>
   );
 }

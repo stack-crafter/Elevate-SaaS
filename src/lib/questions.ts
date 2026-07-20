@@ -1,5 +1,7 @@
 import type { Skill, TestType } from "./store";
 
+// ─── Legacy Question type (kept for compatibility) ────────────────────────────
+
 export interface Question {
   id: number;
   prompt: string;
@@ -9,8 +11,22 @@ export interface Question {
   scenario?: string;
 }
 
+// Re-export AIQuestion from openrouter for convenience
+export type { AIQuestion } from "./openrouter";
+
+// ─── Static fallback questions (used if AI generation fails) ─────────────────
+
 const base = (skill: Skill): Question[] => {
-  const lang = skill === "java" ? "Java" : skill === "python" ? "Python" : "C++";
+  const lang =
+    skill === "java" ? "Java" :
+    skill === "python" ? "Python" :
+    skill === "cpp" ? "C++" :
+    skill === "flutter" ? "Flutter/Dart" :
+    skill === "react" ? "React" :
+    skill === "nodejs" ? "Node.js" :
+    skill === "ai" ? "AI" :
+    skill === "ml" ? "Machine Learning" :
+    "Data Science";
   return [
     { id: 1, prompt: `Which of the following is the correct time complexity of binary search?`, options: ["O(n)", "O(log n)", "O(n log n)", "O(1)"], correct: 1 },
     { id: 2, prompt: `In ${lang}, which data structure offers O(1) average lookup?`, options: ["Array", "Linked List", "Hash Map", "Binary Tree"], correct: 2 },

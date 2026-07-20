@@ -25,8 +25,8 @@ export function Sparkles({ count = 24 }: { count?: number }) {
             top: `${d.y}%`,
             width: d.size,
             height: d.size,
-            background: d.warm ? "#d97757" : "#4285f4",
-            boxShadow: `0 0 8px ${d.warm ? "rgba(217,119,87,0.6)" : "rgba(66,133,244,0.6)"}`,
+            background: d.warm ? "#9aa0a6" : "#4285f4",
+            boxShadow: `0 0 8px ${d.warm ? "rgba(154,160,166,0.6)" : "rgba(66,133,244,0.6)"}`,
             animation: `sparkle ${d.duration}s ease-in-out ${d.delay}s infinite`,
           }}
         />

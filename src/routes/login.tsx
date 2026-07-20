@@ -1,24 +1,43 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
-import { QrCode, Mail, Lock, Sparkles, CheckCircle2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { QrCode, Mail, Lock, CheckCircle2, User } from "lucide-react";
 import { MagneticButton } from "@/components/MagneticButton";
 import { Beams } from "@/components/effects/Beams";
 import { useSession } from "@/lib/store";
+import { useQrLogin } from "@/hooks/useQrLogin";
+// @ts-ignore – qrcode.react types
+import { QRCodeSVG } from "qrcode.react";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Sign in — Elevate Assess" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({ meta: [{ title: "Sign in — Elevate" }, { name: "robots", content: "noindex" }] }),
   component: LoginPage,
 });
 
 function LoginPage() {
   const [tab, setTab] = useState<"qr" | "manual">("qr");
-  const [qrConnected, setQrConnected] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
+
   const login = useSession((s) => s.login);
   const nav = useNavigate();
 
+  // ─── QR hook ──────────────────────────────────────────────────────────────
+  const { qrValue, isConnected, scannedName, scannedEmail, simulateScan, secondsUntilRefresh } =
+    useQrLogin();
+
+  // Navigate after QR approval with a short delay to show candidate info
+  useEffect(() => {
+    if (isConnected && scannedName && scannedEmail) {
+      const t = setTimeout(() => {
+        login({ name: scannedName, email: scannedEmail });
+        nav({ to: "/select" });
+      }, 1800);
+      return () => clearTimeout(t);
+    }
+  }, [isConnected, scannedName, scannedEmail, login, nav]);
+
+  // ─── Manual login ─────────────────────────────────────────────────────────
   const submit = () => {
     if (!email || !password) {
       setError(true);
@@ -29,23 +48,22 @@ function LoginPage() {
     nav({ to: "/select" });
   };
 
-  const simulateQr = () => {
-    setQrConnected(true);
-    setTimeout(() => {
-      login({ name: "Candidate", email: "candidate@elevate.app" });
-      nav({ to: "/select" });
-    }, 900);
-  };
-
   return (
     <div className="relative min-h-screen overflow-hidden">
       <Beams />
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10">
         <div className="mb-8 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-[0_6px_18px_rgba(217,119,87,0.35)]">
-            <Sparkles className="h-4 w-4" />
+          <div className="h-9 w-9 overflow-hidden rounded-lg">
+            <img
+              src="/elogo.png"
+              alt="Elevate Logo"
+              className="h-full w-full object-contain"
+            />
           </div>
-          <span className="font-display text-lg font-bold tracking-tight">Elevate Assess</span>
+
+          <span className="font-display text-lg font-bold tracking-tight">
+            Elevate
+          </span>
         </div>
 
         <div className="surface-card w-full p-7">
@@ -80,21 +98,21 @@ function LoginPage() {
                     "bottom-0 left-0 border-l-2 border-b-2 rounded-bl-lg",
                     "bottom-0 right-0 border-r-2 border-b-2 rounded-br-lg",
                   ].map((c) => (
-                    <span key={c} className={`absolute h-5 w-5 ${c}`} style={{ borderColor: "#d97757" }} />
+                    <span key={c} className={`absolute h-5 w-5 ${c}`} style={{ borderColor: "#4b5563" }} />
                   ))}
 
-                  {/* QR mock */}
-                  <div className="grid h-full grid-cols-8 grid-rows-8 gap-[2px] overflow-hidden rounded-md p-1">
-                    {Array.from({ length: 64 }).map((_, i) => (
-                      <span
-                        key={i}
-                        className="rounded-[2px]"
-                        style={{ background: (i * 37) % 3 === 0 ? "#1a1a1a" : "transparent" }}
-                      />
-                    ))}
+                  {/* Real QR code */}
+                  <div className="flex h-full items-center justify-center rounded-md overflow-hidden">
+                    <QRCodeSVG
+                      value={qrValue}
+                      size={160}
+                      bgColor="transparent"
+                      fgColor="#1a1a1a"
+                      level="M"
+                    />
                   </div>
 
-                  {!qrConnected && (
+                  {!isConnected && (
                     <span
                       aria-hidden
                       className="pointer-events-none absolute left-4 right-4 h-[2px] rounded animate-scan-line"
@@ -102,15 +120,33 @@ function LoginPage() {
                     />
                   )}
 
-                  {qrConnected && (
+                  {isConnected && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/85 backdrop-blur-sm animate-fade-up">
                       <CheckCircle2 className="h-10 w-10 text-success" />
                       <div className="mt-2 text-sm font-semibold">Device connected</div>
+                      {scannedName && (
+                        <div className="mt-3 flex flex-col items-center gap-1">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <User className="h-4 w-4" />
+                          </div>
+                          <div className="text-sm font-semibold text-foreground">{scannedName}</div>
+                          <div className="text-xs text-muted-foreground">{scannedEmail}</div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-                <p className="mt-4 text-center text-xs text-muted-foreground">Scan with the Elevate mobile app to sign in.</p>
-                <button onClick={simulateQr} className="mt-3 text-xs font-medium text-primary hover:text-primary-hover">Simulate scan →</button>
+
+                {/* Refresh countdown */}
+                {!isConnected && (
+                  <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                    QR refreshes in{" "}
+                    <span className="font-semibold tabular-nums text-primary">{secondsUntilRefresh}s</span>
+                  </p>
+                )}
+
+                <p className="mt-2 text-center text-xs text-muted-foreground">Scan with the Elevate mobile app to sign in.</p>
+                <button onClick={simulateScan} disabled={isConnected} className="mt-3 text-xs font-medium text-primary hover:text-primary-hover disabled:opacity-50">Simulate scan →</button>
               </div>
             ) : (
               <form
@@ -131,7 +167,7 @@ function LoginPage() {
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          New here? <button onClick={simulateQr} className="font-medium text-primary hover:text-primary-hover">Try the demo</button>
+          New here? <button onClick={simulateScan} className="font-medium text-primary hover:text-primary-hover">Try the demo</button>
         </p>
       </div>
     </div>
