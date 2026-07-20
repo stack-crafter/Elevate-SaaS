@@ -1,5 +1,8 @@
 import { useState, useCallback } from "react";
-import { X, Loader2, Sparkles, TrendingUp, AlertCircle, CheckCircle2, Briefcase, BookOpen, ArrowRight, Zap, Target, ChevronRight } from "lucide-react";
+import {
+  X, Loader2, Sparkles, TrendingUp, AlertCircle, CheckCircle2,
+  Briefcase, BookOpen, ArrowRight, Zap, Target, ChevronRight,
+} from "lucide-react";
 import { generateCareerGuidance, type CareerGuidance } from "@/lib/openrouter";
 import type { HistoryEntry } from "@/lib/store";
 
@@ -10,25 +13,27 @@ interface Props {
   history: HistoryEntry[];
 }
 
-const FIT_COLOR: Record<string, string> = {
-  Strong: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  Good:   "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  Possible: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+const FIT_STYLE: Record<string, string> = {
+  Strong:   "bg-green-50 text-green-700 border border-green-200",
+  Good:     "bg-blue-50  text-blue-700  border border-blue-200",
+  Possible: "bg-amber-50 text-amber-700 border border-amber-200",
 };
 
 function ReadinessRing({ value }: { value: number }) {
-  const r = 56;
+  const r = 52;
   const circ = 2 * Math.PI * r;
   const progress = (value / 100) * circ;
-  const color = value >= 75 ? "#34d399" : value >= 50 ? "#60a5fa" : "#f59e0b";
+  const color = value >= 75 ? "#0f9d58" : value >= 50 ? "#4285f4" : "#f9ab00";
 
   return (
-    <div className="relative flex items-center justify-center" style={{ width: 144, height: 144 }}>
-      <svg width="144" height="144" viewBox="0 0 144 144" className="rotate-[-90deg]">
-        <circle cx="72" cy="72" r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+    <div className="relative flex items-center justify-center" style={{ width: 136, height: 136 }}>
+      <svg width="136" height="136" viewBox="0 0 136 136" className="rotate-[-90deg]">
+        <circle cx="68" cy="68" r={r} fill="none" stroke="var(--color-border)" strokeWidth="10" />
         <circle
-          cx="72" cy="72" r={r} fill="none"
-          stroke={color} strokeWidth="10"
+          cx="68" cy="68" r={r}
+          fill="none"
+          stroke={color}
+          strokeWidth="10"
           strokeLinecap="round"
           strokeDasharray={`${circ}`}
           strokeDashoffset={circ - progress}
@@ -36,8 +41,8 @@ function ReadinessRing({ value }: { value: number }) {
         />
       </svg>
       <div className="absolute flex flex-col items-center">
-        <span className="font-display text-3xl font-extrabold text-white">{value}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-white/40">readiness</span>
+        <span className="font-display text-3xl font-extrabold text-foreground">{value}</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">readiness</span>
       </div>
     </div>
   );
@@ -50,7 +55,6 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
   const [generated, setGenerated] = useState(false);
 
   const generate = useCallback(async () => {
-    if (generated && guidance) return;
     setLoading(true);
     setError(null);
     try {
@@ -62,97 +66,96 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
     } finally {
       setLoading(false);
     }
-  }, [userName, history, generated, guidance]);
+  }, [userName, history]);
+
+  const handleClose = () => {
+    onClose();
+  };
 
   if (!open) return null;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.75)", backdropFilter: "blur(8px)" }}
+      style={{ background: "rgba(15,23,42,0.4)", backdropFilter: "blur(6px)" }}
     >
+      {/* Modal panel — uses app surface styles */}
       <div
-        className="relative flex w-full max-w-4xl flex-col overflow-hidden rounded-2xl"
-        style={{
-          background: "linear-gradient(145deg, #0f1117 0%, #16181f 60%, #12141c 100%)",
-          border: "1px solid rgba(255,255,255,0.08)",
-          maxHeight: "90vh",
-        }}
+        className="surface-card relative flex w-full max-w-3xl flex-col overflow-hidden"
+        style={{ maxHeight: "88vh", boxShadow: "var(--shadow-modal)" }}
       >
-        {/* ─── Header ─────────────────────────────────────────────────── */}
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-white/[0.06] px-6 py-4">
+        {/* ─── Header ─────────────────────────────────────────────────────── */}
+        <div className="flex flex-shrink-0 items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-blue-500/20 text-violet-400">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Sparkles className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-widest text-white/40">AI Career Advisor</div>
-              <div className="mt-0.5 font-display text-lg font-bold text-white">Your Personalised Career Report</div>
+              <div className="micro-label">AI Career Advisor</div>
+              <div className="mt-0.5 font-display text-lg font-bold">Your Personalised Career Report</div>
             </div>
           </div>
           <button
             id="career-modal-close"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-white/40 transition hover:bg-white/08 hover:text-white"
+            onClick={handleClose}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        {/* ─── Body ───────────────────────────────────────────────────── */}
+        {/* ─── Scrollable body ─────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-6">
 
-          {/* ── Not yet generated ── */}
-          {!generated && !loading && (
-            <div className="flex flex-col items-center py-12 text-center">
-              <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500/15 to-blue-500/15">
-                <Target className="h-9 w-9 text-violet-400" />
+          {/* ── Pre-generate state ── */}
+          {!generated && !loading && !error && (
+            <div className="flex flex-col items-center py-10 text-center">
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                <Target className="h-8 w-8" />
               </div>
-              <h2 className="font-display text-2xl font-bold text-white">
-                AI Career Guidance
-              </h2>
-              <p className="mt-3 max-w-md text-sm text-white/50">
-                Based on your <strong className="text-white/70">{history.length} assessment{history.length !== 1 ? "s" : ""}</strong>, 
-                our AI will analyze your strengths, weaknesses, and suggest personalized career paths tailored to your performance.
+              <h2 className="font-display text-2xl font-bold">AI Career Guidance</h2>
+              <p className="mt-3 max-w-md text-sm text-muted-foreground">
+                Based on your <strong className="text-foreground">{history.length} assessment{history.length !== 1 ? "s" : ""}</strong>, 
+                our AI will analyse your strengths, weaknesses, and recommend personalised career paths.
               </p>
               {history.length === 0 ? (
-                <p className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/10 px-5 py-3 text-sm text-amber-400">
+                <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-700">
                   ⚠ Complete at least one assessment to receive career guidance.
                 </p>
               ) : (
                 <button
                   id="career-generate-btn"
                   onClick={generate}
-                  className="mt-8 flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 px-6 py-3 text-sm font-semibold text-white transition hover:from-violet-500 hover:to-blue-500"
+                  className="mt-8 flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover"
                 >
-                  <Sparkles className="h-4 w-4" /> Generate My Career Report <ArrowRight className="h-4 w-4" />
+                  <Sparkles className="h-4 w-4" />
+                  Generate My Career Report
+                  <ArrowRight className="h-4 w-4" />
                 </button>
               )}
             </div>
           )}
 
-          {/* ── Loading ── */}
+          {/* ── Loading state ── */}
           {loading && (
-            <div className="flex flex-col items-center py-16">
-              <div className="relative mb-6">
-                <div className="h-16 w-16 rounded-full border-2 border-violet-500/20" />
-                <div
-                  className="absolute inset-0 h-16 w-16 animate-spin rounded-full border-2 border-transparent border-t-violet-500"
-                  style={{ animationDuration: "1s" }}
-                />
-                <Sparkles className="absolute inset-0 m-auto h-5 w-5 text-violet-400" />
-              </div>
-              <p className="font-display text-lg font-bold text-white">Analysing your profile…</p>
-              <p className="mt-2 text-sm text-white/40">Our AI is reviewing your {history.length} assessments</p>
+            <div className="flex flex-col items-center py-14">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <p className="mt-4 font-display text-lg font-bold">Analysing your profile…</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Reviewing your {history.length} assessment{history.length !== 1 ? "s" : ""}
+              </p>
             </div>
           )}
 
-          {/* ── Error ── */}
-          {error && (
-            <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-400">
+          {/* ── Error state ── */}
+          {error && !loading && (
+            <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
               <span>{error}</span>
-              <button onClick={generate} className="ml-auto rounded-lg border border-red-500/30 px-3 py-1 text-xs hover:bg-red-500/10">
+              <button
+                onClick={generate}
+                className="ml-auto rounded-lg border border-red-300 px-3 py-1 text-xs hover:bg-red-100"
+              >
                 Retry
               </button>
             </div>
@@ -160,47 +163,49 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
 
           {/* ── Results ── */}
           {guidance && !loading && (
-            <div className="space-y-6">
+            <div className="space-y-5">
 
-              {/* ── Hero: Readiness + Headline ── */}
-              <div className="flex flex-col items-center gap-5 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-center md:flex-row md:text-left">
-                <ReadinessRing value={guidance.overallReadiness} />
+              {/* ── Hero: Readiness ring + headline ── */}
+              <div className="flex flex-col items-center gap-5 rounded-xl border border-border bg-surface-1 p-5 text-center md:flex-row md:text-left">
+                <div className="flex-shrink-0">
+                  <ReadinessRing value={guidance.overallReadiness} />
+                </div>
                 <div>
-                  <div className="text-[11px] font-semibold uppercase tracking-widest text-violet-400">Your career snapshot</div>
-                  <h2 className="mt-2 font-display text-xl font-extrabold leading-snug text-white">{guidance.headline}</h2>
-                  <p className="mt-2 text-sm text-white/50">{guidance.summary}</p>
+                  <div className="micro-label">Your career snapshot</div>
+                  <h2 className="mt-1 font-display text-xl font-extrabold leading-snug">{guidance.headline}</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">{guidance.summary}</p>
                 </div>
               </div>
 
               {/* ── Strengths + Improvements ── */}
               <div className="grid gap-4 md:grid-cols-2">
                 {/* Strengths */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    <span className="text-sm font-semibold text-white">Your Strengths</span>
+                <div className="rounded-xl border border-border bg-surface-1 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                    <span className="text-sm font-semibold">Your Strengths</span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {guidance.strengths.map((s, i) => (
-                      <div key={i} className="rounded-xl border border-emerald-500/10 bg-emerald-500/[0.04] p-3">
-                        <div className="text-sm font-semibold text-emerald-300">{s.title}</div>
-                        <div className="mt-1 text-xs text-white/40">{s.detail}</div>
+                      <div key={i} className="rounded-lg border border-green-100 bg-green-50 p-3">
+                        <div className="text-sm font-semibold text-green-800">{s.title}</div>
+                        <div className="mt-0.5 text-xs text-green-700/70">{s.detail}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Improvements */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-amber-400" />
-                    <span className="text-sm font-semibold text-white">Areas to Improve</span>
+                <div className="rounded-xl border border-border bg-surface-1 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-warning" />
+                    <span className="text-sm font-semibold">Areas to Improve</span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {guidance.improvements.map((imp, i) => (
-                      <div key={i} className="rounded-xl border border-amber-500/10 bg-amber-500/[0.04] p-3">
-                        <div className="text-sm font-semibold text-amber-300">{imp.title}</div>
-                        <div className="mt-1 text-xs text-white/40">{imp.detail}</div>
+                      <div key={i} className="rounded-lg border border-amber-100 bg-amber-50 p-3">
+                        <div className="text-sm font-semibold text-amber-800">{imp.title}</div>
+                        <div className="mt-0.5 text-xs text-amber-700/70">{imp.detail}</div>
                       </div>
                     ))}
                   </div>
@@ -208,38 +213,38 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
               </div>
 
               {/* ── Career Paths ── */}
-              <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                <div className="mb-4 flex items-center gap-2">
-                  <Briefcase className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-semibold text-white">Recommended Career Paths</span>
+              <div className="rounded-xl border border-border bg-surface-1 p-4">
+                <div className="mb-3 flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-semibold">Recommended Career Paths</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {guidance.careerPaths.map((cp, i) => (
-                    <div key={i} className="flex items-start gap-3 rounded-xl border border-white/[0.05] bg-white/[0.02] p-4">
-                      <div className={`mt-0.5 flex-shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${FIT_COLOR[cp.fit] ?? ""}`}>
+                    <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-background p-3">
+                      <span className={`mt-0.5 flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${FIT_STYLE[cp.fit] ?? ""}`}>
                         {cp.fit}
-                      </div>
+                      </span>
                       <div>
-                        <div className="text-sm font-semibold text-white">{cp.role}</div>
-                        <div className="mt-1 text-xs text-white/40">{cp.reason}</div>
+                        <div className="text-sm font-semibold">{cp.role}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{cp.reason}</div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              {/* ── Next Steps + Resources ── */}
+              {/* ── Next Steps + Learning Resources ── */}
               <div className="grid gap-4 md:grid-cols-2">
                 {/* Next Steps */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-violet-400" />
-                    <span className="text-sm font-semibold text-white">Next Steps</span>
+                <div className="rounded-xl border border-border bg-surface-1 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold">Next Steps</span>
                   </div>
                   <ul className="space-y-2">
                     {guidance.nextSteps.map((step, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm text-white/60">
-                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-violet-400" />
+                      <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
+                        <ChevronRight className="mt-0.5 h-3.5 w-3.5 flex-shrink-0 text-primary" />
                         {step}
                       </li>
                     ))}
@@ -247,32 +252,33 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
                 </div>
 
                 {/* Learning Resources */}
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm font-semibold text-white">Learning Resources</span>
+                <div className="rounded-xl border border-border bg-surface-1 p-4">
+                  <div className="mb-3 flex items-center gap-2">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-semibold">Learning Resources</span>
                   </div>
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {guidance.learningResources.map((lr, i) => (
-                      <div key={i} className="rounded-xl border border-white/[0.05] bg-white/[0.02] p-3">
-                        <div className="text-sm font-semibold text-blue-300">{lr.topic}</div>
-                        <div className="mt-1 text-xs text-white/40">{lr.suggestion}</div>
+                      <div key={i} className="rounded-lg border border-border bg-background p-3">
+                        <div className="text-sm font-semibold">{lr.topic}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{lr.suggestion}</div>
                       </div>
                     ))}
                   </div>
                 </div>
               </div>
 
-              {/* ── Regenerate ── */}
-              <div className="flex justify-center">
+              {/* ── Refresh ── */}
+              <div className="flex justify-center pt-1">
                 <button
                   id="career-regenerate-btn"
                   onClick={() => { setGenerated(false); setGuidance(null); generate(); }}
-                  className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2 text-sm text-white/50 transition hover:border-white/[0.15] hover:bg-white/[0.07] hover:text-white"
+                  className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Refresh analysis
                 </button>
               </div>
+
             </div>
           )}
         </div>

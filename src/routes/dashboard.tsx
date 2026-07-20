@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Sparkles, Trophy, Flame, TrendingUp, Clock } from "lucide-react";
 import { useSession } from "@/lib/store";
@@ -71,19 +71,11 @@ function Dashboard() {
                   </div>
                 ))}
               </div>
-              {/* ── Two CTA buttons ── */}
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link to="/select" onClick={reset}>
-                  <MagneticButton id="start-recommended-btn">Start recommended <ArrowRight className="h-4 w-4" /></MagneticButton>
-                </Link>
-                <button
-                  id="career-guidance-btn"
-                  onClick={() => setCareerOpen(true)}
-                  className="flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-surface-2"
-                >
-                  <Sparkles className="h-4 w-4 text-violet-500" />
-                  AI Career Guidance
-                </button>
+              {/* ── CTA: opens career guidance modal ── */}
+              <div className="mt-6">
+                <MagneticButton id="start-recommended-btn" onClick={() => setCareerOpen(true)}>
+                  <Sparkles className="h-4 w-4" /> Start recommended <ArrowRight className="h-4 w-4" />
+                </MagneticButton>
               </div>
             </div>
           </Spotlight>
