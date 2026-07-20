@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { ArrowRight, Sparkles, Trophy, Flame, TrendingUp, Clock } from "lucide-react";
 import { useSession } from "@/lib/store";
