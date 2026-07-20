@@ -200,6 +200,8 @@ function TestPage() {
         setI(i + 1);
         setTransitioning(false);
       } else {
+        // Stop anti-cheat detection before submitting
+        testEndedRef.current = true;
         // Submit to AI evaluator
         await submitTest();
         nav({ to: "/results" });
