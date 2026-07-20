@@ -293,3 +293,98 @@ Be concise, encouraging, and mentor-like. Do not exceed 150 words.`;
     apiKey,
   );
 }
+
+// ─── Career Guidance ──────────────────────────────────────────────────────────
+
+export interface CareerGuidance {
+  headline: string;
+  summary: string;
+  strengths: { title: string; detail: string }[];
+  improvements: { title: string; detail: string }[];
+  careerPaths: { role: string; fit: "Strong" | "Good" | "Possible"; reason: string }[];
+  nextSteps: string[];
+  learningResources: { topic: string; suggestion: string }[];
+  overallReadiness: number; // 0-100
+}
+
+export async function generateCareerGuidance(
+  userName: string,
+  history: { skill: string; testType: string; score: number; date: string; tier: string; feedback?: { strengths?: string[]; weaknesses?: string[]; overallFeedback?: string } | null }[],
+): Promise<CareerGuidance> {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("No API key.");
+
+  const historySummary = history.map((h, i) =>
+    `Test ${i + 1}: ${SKILL_LABELS[h.skill] ?? h.skill} (${h.testType}) — Score: ${h.score}/100 — Badge: ${h.tier}` +
+    (h.feedback?.overallFeedback ? `\n  Feedback: ${h.feedback.overallFeedback}` : "") +
+    (h.feedback?.strengths?.length ? `\n  Strengths: ${h.feedback.strengths.join(", ")}` : "") +
+    (h.feedback?.weaknesses?.length ? `\n  Weaknesses: ${h.feedback.weaknesses.join(", ")}` : ""),
+  ).join("\n\n");
+
+  const skillCoverage = [...new Set(history.map((h) => SKILL_LABELS[h.skill] ?? h.skill))].join(", ");
+  const avgScore = history.length > 0 ? Math.round(history.reduce((a, b) => a + b.score, 0) / history.length) : 0;
+
+  const systemPrompt = `You are an expert career counselor and technical recruiter specializing in software engineering. 
+Analyze this candidate's assessment history and generate a comprehensive, personalized career guidance report.
+
+Candidate: ${userName}
+Total Assessments: ${history.length}
+Average Score: ${avgScore}/100
+Skills Tested: ${skillCoverage}
+
+Assessment History:
+${historySummary}
+
+Generate a detailed career guidance report. Return ONLY valid JSON (no markdown fences) matching this EXACT structure:
+{
+  "headline": "One powerful headline sentence about the candidate's trajectory",
+  "summary": "2-3 sentence personalized summary of their overall technical profile",
+  "strengths": [
+    { "title": "Strength area", "detail": "Specific evidence-based explanation from their test data" }
+  ],
+  "improvements": [
+    { "title": "Area to improve", "detail": "Specific, actionable advice based on weak areas" }
+  ],
+  "careerPaths": [
+    { "role": "Job title", "fit": "Strong|Good|Possible", "reason": "Why this role fits their profile" }
+  ],
+  "nextSteps": [
+    "Concrete action step 1",
+    "Concrete action step 2",
+    "Concrete action step 3"
+  ],
+  "learningResources": [
+    { "topic": "Topic to study", "suggestion": "Specific resource or approach recommendation" }
+  ],
+  "overallReadiness": <0-100 industry readiness score>
+}
+
+Rules:
+- Base ALL recommendations on their actual test data — be specific, not generic
+- strengths: list 3-4 genuine strengths with evidence
+- improvements: list 3-4 areas needing work with actionable steps
+- careerPaths: suggest 4-5 realistic roles matching their skill mix
+- nextSteps: 4-5 concrete immediate actions they can take this week
+- learningResources: 3-4 specific learning areas with resource types
+- overallReadiness: honest 0-100 score based on avg score and skill breadth
+- Be encouraging yet honest — this is career-defining guidance`;
+
+  const raw = await openRouterFetch(
+    {
+      model: OPENROUTER_MODEL || "google/gemini-2.0-flash-001",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `Generate career guidance for ${userName} based on their ${history.length} assessment${history.length !== 1 ? "s" : ""}.` },
+      ],
+      temperature: 0.5,
+      max_tokens: 2500,
+    },
+    apiKey,
+  );
+
+  const parsed = safeParseJSON<CareerGuidance>(raw);
+  if (!parsed || typeof parsed.headline !== "string") {
+    throw new Error("AI returned malformed career guidance. Please try again.");
+  }
+  return parsed;
+}

@@ -1,11 +1,12 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ArrowRight, Sparkles, Trophy, Flame, TrendingUp, Clock } from "lucide-react";
 import { useSession } from "@/lib/store";
 import { AppShell } from "@/components/AppShell";
 import { Spotlight } from "@/components/effects/Spotlight";
 import { BorderBeam } from "@/components/effects/BorderBeam";
 import { MagneticButton } from "@/components/MagneticButton";
+import { CareerGuidanceModal } from "@/components/CareerGuidanceModal";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — Elevate" }, { name: "robots", content: "noindex" }] }),
@@ -16,6 +17,8 @@ function Dashboard() {
   const { authed, user, history, reset, stats } = useSession();
   const nav = useNavigate();
   useEffect(() => { if (!authed) nav({ to: "/login" }); }, [authed, nav]);
+
+  const [careerOpen, setCareerOpen] = useState(false);
 
   const latestSkill = history[0]?.skill ?? "Python";
   const latestType = history[0]?.testType ?? "Vibe Code";
@@ -68,9 +71,20 @@ function Dashboard() {
                   </div>
                 ))}
               </div>
-              <Link to="/select" onClick={reset} className="mt-6 inline-block">
-                <MagneticButton>Start recommended <ArrowRight className="h-4 w-4" /></MagneticButton>
-              </Link>
+              {/* ── Two CTA buttons ── */}
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link to="/select" onClick={reset}>
+                  <MagneticButton id="start-recommended-btn">Start recommended <ArrowRight className="h-4 w-4" /></MagneticButton>
+                </Link>
+                <button
+                  id="career-guidance-btn"
+                  onClick={() => setCareerOpen(true)}
+                  className="flex items-center gap-2 rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary/40 hover:bg-surface-2"
+                >
+                  <Sparkles className="h-4 w-4 text-violet-500" />
+                  AI Career Guidance
+                </button>
+              </div>
             </div>
           </Spotlight>
 
@@ -107,6 +121,14 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── Career Guidance Modal ── */}
+      <CareerGuidanceModal
+        open={careerOpen}
+        onClose={() => setCareerOpen(false)}
+        userName={user?.name ?? "Candidate"}
+        history={history}
+      />
     </AppShell>
   );
 }
