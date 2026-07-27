@@ -5,7 +5,6 @@ import { MagneticButton } from "@/components/MagneticButton";
 import { Beams } from "@/components/effects/Beams";
 import { useSession } from "@/lib/store";
 import { useQrLogin } from "@/hooks/useQrLogin";
-// @ts-expect-error – qrcode.react types
 import { QRCodeSVG } from "qrcode.react";
 
 import { signIn, pairUser } from "@/data/repositories/authRepository";
