@@ -12,6 +12,7 @@ let _handler: FetchHandler | undefined;
 async function getHandler(): Promise<FetchHandler> {
   if (!_handler) {
     // Import the TanStack Start SSR bundle built by vite build
+    // @ts-expect-error - import dynamic server bundle which is only present after vite build runs
     const mod = await import("../dist/server/server.js");
     _handler = (mod.default ?? mod) as FetchHandler;
   }
