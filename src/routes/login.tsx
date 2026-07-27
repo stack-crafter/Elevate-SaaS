@@ -10,8 +10,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { signIn, pairUser } from "@/data/repositories/authRepository";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    qr_session: typeof search.qr_session === "string" ? search.qr_session : "",
+  validateSearch: (search: Record<string, unknown>): { qr_session?: string } => ({
+    qr_session: typeof search.qr_session === "string" ? search.qr_session : undefined,
   }),
   head: () => ({ meta: [{ title: "Sign in — Elevate" }, { name: "robots", content: "noindex" }] }),
   component: LoginPage,
