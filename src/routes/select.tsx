@@ -102,11 +102,21 @@ const types: {
 ];
 
 function SelectPage() {
-  const { skill, testType, setSkill, setTestType, authed } = useSession();
+  const { skill, testType, setSkill, setTestType, authed, authLoading } = useSession();
   const nav = useNavigate();
   useEffect(() => {
-    if (!authed) nav({ to: "/login" });
-  }, [authed, nav]);
+    if (!authLoading && !authed) {
+      nav({ to: "/login" });
+    }
+  }, [authLoading, authed, nav]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-1">
+        <div className="animate-pulse text-sm text-muted-foreground">Verifying session...</div>
+      </div>
+    );
+  }
 
   const handleStart = () => {
     nav({ to: "/test" });

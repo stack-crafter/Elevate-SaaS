@@ -43,6 +43,7 @@ function TestPage() {
     skill,
     testType,
     authed,
+    authLoading,
     answers,
     setAnswer,
     questions,
@@ -53,9 +54,11 @@ function TestPage() {
   const nav = useNavigate();
 
   useEffect(() => {
-    if (!authed) nav({ to: "/login" });
-    else if (!skill || !testType) nav({ to: "/select" });
-  }, [authed, skill, testType, nav]);
+    if (!authLoading) {
+      if (!authed) nav({ to: "/login" });
+      else if (!skill || !testType) nav({ to: "/select" });
+    }
+  }, [authLoading, authed, skill, testType, nav]);
 
   const { isGenerating, isEvaluating, generateError, generateTest, submitTest } = useTestSession();
 
@@ -286,6 +289,14 @@ function TestPage() {
   }, [questions.length, triggerTestEnd]);
 
   const currentAnswer = answers[i] ?? null;
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-1">
+        <div className="animate-pulse text-sm text-muted-foreground">Verifying session...</div>
+      </div>
+    );
+  }
 
   if (!skill || !testType) return null;
 

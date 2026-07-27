@@ -16,13 +16,23 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function Dashboard() {
-  const { authed, user, history, reset, stats } = useSession();
+  const { authed, authLoading, user, history, reset, stats } = useSession();
   const nav = useNavigate();
   useEffect(() => {
-    if (!authed) nav({ to: "/login" });
-  }, [authed, nav]);
+    if (!authLoading && !authed) {
+      nav({ to: "/login" });
+    }
+  }, [authLoading, authed, nav]);
 
   const [careerOpen, setCareerOpen] = useState(false);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-1">
+        <div className="animate-pulse text-sm text-muted-foreground">Verifying session...</div>
+      </div>
+    );
+  }
 
   const latestSkill = history[0]?.skill ?? "Python";
   const latestType = history[0]?.testType ?? "Vibe Code";

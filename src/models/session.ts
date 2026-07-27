@@ -1,4 +1,4 @@
-﻿// ─── Session Models ───────────────────────────────────────────────────────────
+// ─── Session Models ───────────────────────────────────────────────────────────
 import type { EvaluationResult, ChatMessage } from "./assessment";
 
 export type Skill =
@@ -31,6 +31,7 @@ export interface HistoryEntry {
 export interface SessionState {
   // Auth
   authed: boolean;
+  authLoading: boolean;
   user: { name: string; email: string } | null;
   apiKey: string | null;
 

@@ -11,6 +11,7 @@ import { saveTestResult } from "@/data/repositories/testsRepository";
 export interface SessionState {
   // Auth
   authed: boolean;
+  authLoading: boolean;
   user: { name: string; email: string } | null;
   apiKey: string | null;
 
@@ -81,6 +82,7 @@ export const useSession = create<SessionState>()(
   persist(
     (set, get) => ({
       authed: false,
+      authLoading: true,
       user: null,
       apiKey: null,
 
@@ -102,11 +104,11 @@ export const useSession = create<SessionState>()(
 
       // ─── Auth ──────────────────────────────────────────────────────────────
       login: (user) => {
-        set({ authed: true, user });
+        set({ authed: true, authLoading: false, user });
       },
       logout: () => {
         signOut().catch(() => {});
-        set({ authed: false, user: null });
+        set({ authed: false, authLoading: false, user: null });
       },
       setApiKey: (key) => {
         localStorage.setItem("elevate_openrouter_key", key);
@@ -233,6 +235,7 @@ onAuthStateChanged((user) => {
   if (user) {
     useSession.setState({
       authed: true,
+      authLoading: false,
       user: {
         name: user.displayName || user.email?.split("@")[0] || "Candidate",
         email: user.email || "",
@@ -241,6 +244,7 @@ onAuthStateChanged((user) => {
   } else {
     useSession.setState({
       authed: false,
+      authLoading: false,
       user: null,
     });
   }

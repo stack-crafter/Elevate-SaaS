@@ -36,12 +36,22 @@ const tierLabels: Record<BadgeTier, string> = {
 };
 
 function BadgePage() {
-  const { skill, testType, score, authed } = useSession();
+  const { skill, testType, score, authed, authLoading } = useSession();
   const nav = useNavigate();
   useEffect(() => {
-    if (!authed) nav({ to: "/login" });
-    else if (score === null) nav({ to: "/dashboard" });
-  }, [authed, score, nav]);
+    if (!authLoading) {
+      if (!authed) nav({ to: "/login" });
+      else if (score === null) nav({ to: "/dashboard" });
+    }
+  }, [authLoading, authed, score, nav]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-1">
+        <div className="animate-pulse text-sm text-muted-foreground">Verifying session...</div>
+      </div>
+    );
+  }
 
   if (score === null) return null;
 

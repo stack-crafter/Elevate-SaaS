@@ -31,8 +31,18 @@ const BADGE_IMG: Record<string, string | null> = {
 };
 
 function ResultsPage() {
-  const { skill, testType, answers, score, aiFeedback, authed, stats, history, questions } =
-    useSession();
+  const {
+    skill,
+    testType,
+    answers,
+    score,
+    aiFeedback,
+    authed,
+    authLoading,
+    stats,
+    history,
+    questions,
+  } = useSession();
   const nav = useNavigate();
 
   const proctoringWarnings = useProctoringStore((s) => s.warnings);
@@ -41,9 +51,11 @@ function ResultsPage() {
   const proctoringTerminated = useProctoringStore((s) => s.terminated);
 
   useEffect(() => {
-    if (!authed) nav({ to: "/login" });
-    else if (score === null) nav({ to: "/dashboard" });
-  }, [authed, score, nav]);
+    if (!authLoading) {
+      if (!authed) nav({ to: "/login" });
+      else if (score === null) nav({ to: "/dashboard" });
+    }
+  }, [authLoading, authed, score, nav]);
 
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -60,6 +72,14 @@ function ResultsPage() {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [score]);
+
+  if (authLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-surface-1">
+        <div className="animate-pulse text-sm text-muted-foreground">Verifying session...</div>
+      </div>
+    );
+  }
 
   if (score === null) return null;
 
