@@ -1,25 +1,45 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { CheckCircle2, XCircle, Trophy, ArrowRight, TrendingUp, Target, Lightbulb, AlertCircle } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Trophy,
+  ArrowRight,
+  TrendingUp,
+  Target,
+  Lightbulb,
+  AlertCircle,
+} from "lucide-react";
 import { useSession, tierFor, jobFor } from "@/lib/store";
+import { useProctoringStore } from "@/lib/proctoringStore";
+import { ProctoringReport } from "@/components/proctoring/ProctoringReport";
 import { MagneticButton } from "@/components/MagneticButton";
 
 export const Route = createFileRoute("/results")({
-  head: () => ({ meta: [{ title: "Your results — Elevate" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Your results — Elevate" }, { name: "robots", content: "noindex" }],
+  }),
   component: ResultsPage,
 });
 
 // Badge images from public/badges/
 const BADGE_IMG: Record<string, string | null> = {
-  Gold:   "/badges/gold.png",
+  Gold: "/badges/gold.png",
   Silver: "/badges/silver.png",
   Bronze: "/badges/bronze.png",
-  None:   null,
+  None: null,
 };
 
 function ResultsPage() {
-  const { skill, testType, answers, score, aiFeedback, authed, stats, history, questions } = useSession();
+  const { skill, testType, answers, score, aiFeedback, authed, stats, history, questions } =
+    useSession();
   const nav = useNavigate();
+
+  const proctoringWarnings = useProctoringStore((s) => s.warnings);
+  const proctoringMaxWarnings = useProctoringStore((s) => s.config.maxWarnings);
+  const proctoringViolations = useProctoringStore((s) => s.violations);
+  const proctoringTerminated = useProctoringStore((s) => s.terminated);
+
   useEffect(() => {
     if (!authed) nav({ to: "/login" });
     else if (score === null) nav({ to: "/dashboard" });
@@ -60,24 +80,46 @@ function ResultsPage() {
 
   const questionScores = aiFeedback?.questionScores ?? [];
 
+  const titleText = proctoringTerminated ? "Exam Terminated." : "Nicely done.";
+  const subtitleText = proctoringTerminated
+    ? "This session was ended automatically and flagged due to repeated AI-detected violations."
+    : "Here's how this session broke down.";
+
   return (
     <div className="min-h-screen bg-surface-1">
       <div className="mx-auto max-w-4xl px-6 py-14">
         {/* ─── Hero ─────────────────────────────────────────────────────────── */}
         <div className="text-center animate-fade-up">
-          <div className="micro-label">Assessment complete</div>
-          <h1 className="mt-2 font-display text-4xl font-bold tracking-tight md:text-5xl">Nicely done.</h1>
-          <p className="mt-3 text-lg text-muted-foreground">Here's how this session broke down.</p>
+          <div className="micro-label">
+            {proctoringTerminated ? "Assessment Terminated" : "Assessment complete"}
+          </div>
+          <h1
+            className={`mt-2 font-display text-4xl font-bold tracking-tight md:text-5xl ${proctoringTerminated ? "text-danger" : ""}`}
+          >
+            {titleText}
+          </h1>
+          <p className="mt-3 text-lg text-muted-foreground">{subtitleText}</p>
         </div>
 
         {/* ─── Score + Stats ────────────────────────────────────────────────── */}
         <div className="mt-12 grid gap-6 md:grid-cols-[auto_1fr]">
           <div className="surface-card mx-auto flex h-64 w-64 items-center justify-center p-6">
             <svg viewBox="0 0 200 200" className="h-full w-full -rotate-90">
-              <circle cx="100" cy="100" r={R} stroke="rgba(15,23,42,0.06)" strokeWidth="14" fill="none" />
               <circle
-                cx="100" cy="100" r={R}
-                stroke="url(#g1)" strokeWidth="14" fill="none"
+                cx="100"
+                cy="100"
+                r={R}
+                stroke="rgba(15,23,42,0.06)"
+                strokeWidth="14"
+                fill="none"
+              />
+              <circle
+                cx="100"
+                cy="100"
+                r={R}
+                stroke="url(#g1)"
+                strokeWidth="14"
+                fill="none"
                 strokeLinecap="round"
                 strokeDasharray={`${dash} ${C}`}
                 style={{ transition: "stroke-dasharray 60ms linear" }}
@@ -89,8 +131,27 @@ function ResultsPage() {
                 </linearGradient>
               </defs>
               <g transform="rotate(90 100 100)">
-                <text x="100" y="96" textAnchor="middle" className="font-display" fontSize="48" fontWeight="800" fill="#1a1a1a">{display}</text>
-                <text x="100" y="122" textAnchor="middle" fontSize="12" fill="#5f6368" letterSpacing="1.5">OUT OF 100</text>
+                <text
+                  x="100"
+                  y="96"
+                  textAnchor="middle"
+                  className="font-display"
+                  fontSize="48"
+                  fontWeight="800"
+                  fill="#1a1a1a"
+                >
+                  {display}
+                </text>
+                <text
+                  x="100"
+                  y="122"
+                  textAnchor="middle"
+                  fontSize="12"
+                  fill="#5f6368"
+                  letterSpacing="1.5"
+                >
+                  OUT OF 100
+                </text>
               </g>
             </svg>
           </div>
@@ -99,14 +160,22 @@ function ResultsPage() {
             <Stat label="Skill" value={skill!} />
             <Stat label="Format" value={`${testType} code`} />
             {mcqQuestions.length > 0 && (
-              <Stat label="MCQ Correct" value={`${mcqCorrect} / ${mcqQuestions.length}`} accent="#0f9d58" />
+              <Stat
+                label="MCQ Correct"
+                value={`${mcqCorrect} / ${mcqQuestions.length}`}
+                accent="#0f9d58"
+              />
             )}
             {/* Badge */}
             <div className="surface-card flex items-center justify-between p-4">
               <span className="micro-label">Badge Earned</span>
               <div className="flex items-center gap-2">
                 {badgeImg ? (
-                  <img src={badgeImg} alt={`${tier} badge`} className="h-8 w-8 object-contain drop-shadow" />
+                  <img
+                    src={badgeImg}
+                    alt={`${tier} badge`}
+                    className="h-8 w-8 object-contain drop-shadow"
+                  />
                 ) : (
                   <Trophy className="h-5 w-5 text-muted-foreground" />
                 )}
@@ -123,6 +192,14 @@ function ResultsPage() {
           </div>
         </div>
 
+        {/* ─── Proctoring Report ─────────────────────────────────────────────── */}
+        <ProctoringReport
+          violations={proctoringViolations}
+          warnings={proctoringWarnings}
+          maxWarnings={proctoringMaxWarnings}
+          terminated={proctoringTerminated}
+        />
+
         {/* ─── AI Feedback ──────────────────────────────────────────────────── */}
         {aiFeedback && (
           <div className="mt-12 space-y-4 animate-fade-up">
@@ -135,8 +212,12 @@ function ResultsPage() {
                   <Target className="h-4 w-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">Overall Assessment</div>
-                  <p className="text-sm text-foreground leading-relaxed">{aiFeedback.overallFeedback}</p>
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
+                    Overall Assessment
+                  </div>
+                  <p className="text-sm text-foreground leading-relaxed">
+                    {aiFeedback.overallFeedback}
+                  </p>
                 </div>
               </div>
             </div>
@@ -147,7 +228,9 @@ function ResultsPage() {
                 <div className="surface-card p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <TrendingUp className="h-4 w-4 text-success" />
-                    <div className="text-xs font-semibold uppercase tracking-wider text-success">Strengths</div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-success">
+                      Strengths
+                    </div>
                   </div>
                   <ul className="space-y-1.5">
                     {aiFeedback.strengths.map((s, i) => (
@@ -163,7 +246,9 @@ function ResultsPage() {
                 <div className="surface-card p-5">
                   <div className="flex items-center gap-2 mb-3">
                     <Lightbulb className="h-4 w-4 text-primary" />
-                    <div className="text-xs font-semibold uppercase tracking-wider text-primary">Areas to Improve</div>
+                    <div className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      Areas to Improve
+                    </div>
                   </div>
                   <ul className="space-y-1.5">
                     {aiFeedback.weaknesses.map((w, i) => (
@@ -215,14 +300,18 @@ function ResultsPage() {
                           {qs && <span className="ml-1 text-foreground">· {qs.score}/10</span>}
                         </div>
                         {isCorrect !== null && (
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${isCorrect ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${isCorrect ? "bg-success/10 text-success" : "bg-danger/10 text-danger"}`}
+                          >
                             {isCorrect ? "Correct" : "Needs work"}
                           </span>
                         )}
                       </div>
                       <div className="mt-0.5 text-sm text-foreground line-clamp-2">{q.prompt}</div>
                       {qs?.feedback && (
-                        <div className="mt-1.5 text-xs text-muted-foreground italic">{qs.feedback}</div>
+                        <div className="mt-1.5 text-xs text-muted-foreground italic">
+                          {qs.feedback}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -245,8 +334,14 @@ function ResultsPage() {
 
         {/* ─── Actions ──────────────────────────────────────────────────────── */}
         <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
-          <Link to="/dashboard"><MagneticButton variant="secondary">Back to dashboard</MagneticButton></Link>
-          <Link to="/badge"><MagneticButton><Trophy className="h-4 w-4" /> View badge <ArrowRight className="h-4 w-4" /></MagneticButton></Link>
+          <Link to="/dashboard">
+            <MagneticButton variant="secondary">Back to dashboard</MagneticButton>
+          </Link>
+          <Link to="/badge">
+            <MagneticButton>
+              <Trophy className="h-4 w-4" /> View badge <ArrowRight className="h-4 w-4" />
+            </MagneticButton>
+          </Link>
         </div>
       </div>
     </div>
@@ -257,7 +352,9 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
   return (
     <div className="surface-card flex items-center justify-between p-4">
       <span className="micro-label">{label}</span>
-      <span className="font-display text-lg font-bold capitalize" style={{ color: accent }}>{value}</span>
+      <span className="font-display text-lg font-bold capitalize" style={{ color: accent }}>
+        {value}
+      </span>
     </div>
   );
 }

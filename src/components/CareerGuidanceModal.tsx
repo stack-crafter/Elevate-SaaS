@@ -1,7 +1,17 @@
 import { useState, useCallback } from "react";
 import {
-  X, Loader2, Sparkles, TrendingUp, AlertCircle, CheckCircle2,
-  Briefcase, BookOpen, ArrowRight, Zap, Target, ChevronRight,
+  X,
+  Loader2,
+  Sparkles,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Briefcase,
+  BookOpen,
+  ArrowRight,
+  Zap,
+  Target,
+  ChevronRight,
 } from "lucide-react";
 import { generateCareerGuidance, type CareerGuidance } from "@/lib/openrouter";
 import type { HistoryEntry } from "@/lib/store";
@@ -14,8 +24,8 @@ interface Props {
 }
 
 const FIT_STYLE: Record<string, string> = {
-  Strong:   "bg-green-50 text-green-700 border border-green-200",
-  Good:     "bg-blue-50  text-blue-700  border border-blue-200",
+  Strong: "bg-green-50 text-green-700 border border-green-200",
+  Good: "bg-blue-50  text-blue-700  border border-blue-200",
   Possible: "bg-amber-50 text-amber-700 border border-amber-200",
 };
 
@@ -30,7 +40,9 @@ function ReadinessRing({ value }: { value: number }) {
       <svg width="136" height="136" viewBox="0 0 136 136" className="rotate-[-90deg]">
         <circle cx="68" cy="68" r={r} fill="none" stroke="var(--color-border)" strokeWidth="10" />
         <circle
-          cx="68" cy="68" r={r}
+          cx="68"
+          cy="68"
+          r={r}
           fill="none"
           stroke={color}
           strokeWidth="10"
@@ -42,7 +54,9 @@ function ReadinessRing({ value }: { value: number }) {
       </svg>
       <div className="absolute flex flex-col items-center">
         <span className="font-display text-3xl font-extrabold text-foreground">{value}</span>
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">readiness</span>
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          readiness
+        </span>
       </div>
     </div>
   );
@@ -92,7 +106,9 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
             </div>
             <div>
               <div className="micro-label">AI Career Advisor</div>
-              <div className="mt-0.5 font-display text-lg font-bold">Your Personalised Career Report</div>
+              <div className="mt-0.5 font-display text-lg font-bold">
+                Your Personalised Career Report
+              </div>
             </div>
           </div>
           <button
@@ -106,7 +122,6 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
 
         {/* ─── Scrollable body ─────────────────────────────────────────────── */}
         <div className="flex-1 overflow-y-auto p-6">
-
           {/* ── Pre-generate state ── */}
           {!generated && !loading && !error && (
             <div className="flex flex-col items-center py-10 text-center">
@@ -115,8 +130,12 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
               </div>
               <h2 className="font-display text-2xl font-bold">AI Career Guidance</h2>
               <p className="mt-3 max-w-md text-sm text-muted-foreground">
-                Based on your <strong className="text-foreground">{history.length} assessment{history.length !== 1 ? "s" : ""}</strong>, 
-                our AI will analyse your strengths, weaknesses, and recommend personalised career paths.
+                Based on your{" "}
+                <strong className="text-foreground">
+                  {history.length} assessment{history.length !== 1 ? "s" : ""}
+                </strong>
+                , our AI will analyse your strengths, weaknesses, and recommend personalised career
+                paths.
               </p>
               {history.length === 0 ? (
                 <p className="mt-6 rounded-xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-700">
@@ -164,7 +183,6 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
           {/* ── Results ── */}
           {guidance && !loading && (
             <div className="space-y-5">
-
               {/* ── Hero: Readiness ring + headline ── */}
               <div className="flex flex-col items-center gap-5 rounded-xl border border-border bg-surface-1 p-5 text-center md:flex-row md:text-left">
                 <div className="flex-shrink-0">
@@ -172,7 +190,9 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
                 </div>
                 <div>
                   <div className="micro-label">Your career snapshot</div>
-                  <h2 className="mt-1 font-display text-xl font-extrabold leading-snug">{guidance.headline}</h2>
+                  <h2 className="mt-1 font-display text-xl font-extrabold leading-snug">
+                    {guidance.headline}
+                  </h2>
                   <p className="mt-2 text-sm text-muted-foreground">{guidance.summary}</p>
                 </div>
               </div>
@@ -220,8 +240,13 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {guidance.careerPaths.map((cp, i) => (
-                    <div key={i} className="flex items-start gap-3 rounded-lg border border-border bg-background p-3">
-                      <span className={`mt-0.5 flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${FIT_STYLE[cp.fit] ?? ""}`}>
+                    <div
+                      key={i}
+                      className="flex items-start gap-3 rounded-lg border border-border bg-background p-3"
+                    >
+                      <span
+                        className={`mt-0.5 flex-shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${FIT_STYLE[cp.fit] ?? ""}`}
+                      >
                         {cp.fit}
                       </span>
                       <div>
@@ -272,13 +297,16 @@ export function CareerGuidanceModal({ open, onClose, userName, history }: Props)
               <div className="flex justify-center pt-1">
                 <button
                   id="career-regenerate-btn"
-                  onClick={() => { setGenerated(false); setGuidance(null); generate(); }}
+                  onClick={() => {
+                    setGenerated(false);
+                    setGuidance(null);
+                    generate();
+                  }}
                   className="flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition hover:bg-surface-2 hover:text-foreground"
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Refresh analysis
                 </button>
               </div>
-
             </div>
           )}
         </div>

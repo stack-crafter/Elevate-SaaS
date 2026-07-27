@@ -2,7 +2,10 @@ export function Beams() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       <div className="absolute inset-0 mesh-bg animate-mesh-drift" />
-      <svg className="absolute inset-0 h-full w-full opacity-[0.5]" xmlns="http://www.w3.org/2000/svg">
+      <svg
+        className="absolute inset-0 h-full w-full opacity-[0.5]"
+        xmlns="http://www.w3.org/2000/svg"
+      >
         <defs>
           <linearGradient id="beam-g" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="rgba(15,23,42,0)" />

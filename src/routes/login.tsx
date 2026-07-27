@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { QrCode, Mail, Lock, CheckCircle2, User } from "lucide-react";
 import { MagneticButton } from "@/components/MagneticButton";
 import { Beams } from "@/components/effects/Beams";
 import { useSession } from "@/lib/store";
 import { useQrLogin } from "@/hooks/useQrLogin";
-// @ts-ignore – qrcode.react types
+// @ts-expect-error – qrcode.react types
 import { QRCodeSVG } from "qrcode.react";
 
 export const Route = createFileRoute("/login")({
@@ -54,16 +54,10 @@ function LoginPage() {
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10">
         <div className="mb-8 flex items-center gap-2">
           <div className="h-9 w-9 overflow-hidden rounded-lg">
-            <img
-              src="/elogo.png"
-              alt="Elevate Logo"
-              className="h-full w-full object-contain"
-            />
+            <img src="/elogo.png" alt="Elevate Logo" className="h-full w-full object-contain" />
           </div>
 
-          <span className="font-display text-lg font-bold tracking-tight">
-            Elevate
-          </span>
+          <span className="font-display text-lg font-bold tracking-tight">Elevate</span>
         </div>
 
         <div className="surface-card w-full p-7">
@@ -83,7 +77,10 @@ function LoginPage() {
             <span
               aria-hidden
               className="absolute top-1 h-[calc(100%-8px)] w-[calc(50%-4px)] rounded-md bg-white shadow-[0_2px_8px_rgba(15,23,42,0.06)] transition-all duration-200"
-              style={{ left: tab === "qr" ? 4 : "calc(50% + 0px)", transitionTimingFunction: "cubic-bezier(0.22,1,0.36,1)" }}
+              style={{
+                left: tab === "qr" ? 4 : "calc(50% + 0px)",
+                transitionTimingFunction: "cubic-bezier(0.22,1,0.36,1)",
+              }}
             />
           </div>
 
@@ -98,7 +95,11 @@ function LoginPage() {
                     "bottom-0 left-0 border-l-2 border-b-2 rounded-bl-lg",
                     "bottom-0 right-0 border-r-2 border-b-2 rounded-br-lg",
                   ].map((c) => (
-                    <span key={c} className={`absolute h-5 w-5 ${c}`} style={{ borderColor: "#4b5563" }} />
+                    <span
+                      key={c}
+                      className={`absolute h-5 w-5 ${c}`}
+                      style={{ borderColor: "#4b5563" }}
+                    />
                   ))}
 
                   {/* Real QR code */}
@@ -116,7 +117,11 @@ function LoginPage() {
                     <span
                       aria-hidden
                       className="pointer-events-none absolute left-4 right-4 h-[2px] rounded animate-scan-line"
-                      style={{ top: 8, background: "linear-gradient(90deg, transparent, rgba(217,119,87,0.6), transparent)" }}
+                      style={{
+                        top: 8,
+                        background:
+                          "linear-gradient(90deg, transparent, rgba(217,119,87,0.6), transparent)",
+                      }}
                     />
                   )}
 
@@ -141,24 +146,53 @@ function LoginPage() {
                 {!isConnected && (
                   <p className="mt-2 text-center text-[11px] text-muted-foreground">
                     QR refreshes in{" "}
-                    <span className="font-semibold tabular-nums text-primary">{secondsUntilRefresh}s</span>
+                    <span className="font-semibold tabular-nums text-primary">
+                      {secondsUntilRefresh}s
+                    </span>
                   </p>
                 )}
 
-                <p className="mt-2 text-center text-xs text-muted-foreground">Scan with the Elevate mobile app to sign in.</p>
-                <button onClick={simulateScan} disabled={isConnected} className="mt-3 text-xs font-medium text-primary hover:text-primary-hover disabled:opacity-50">Simulate scan →</button>
+                <p className="mt-2 text-center text-xs text-muted-foreground">
+                  Scan with the Elevate mobile app to sign in.
+                </p>
+                <button
+                  onClick={simulateScan}
+                  disabled={isConnected}
+                  className="mt-3 text-xs font-medium text-primary hover:text-primary-hover disabled:opacity-50"
+                >
+                  Simulate scan →
+                </button>
               </div>
             ) : (
               <form
-                onSubmit={(e) => { e.preventDefault(); submit(); }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submit();
+                }}
                 className={`animate-fade-up space-y-4 ${error ? "animate-[shake_0.3s]" : ""}`}
               >
                 <style>{`@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }`}</style>
-                <FloatingInput icon={Mail} label="Email address" value={email} onChange={setEmail} type="email" />
-                <FloatingInput icon={Lock} label="Password" value={password} onChange={setPassword} type="password" />
+                <FloatingInput
+                  icon={Mail}
+                  label="Email address"
+                  value={email}
+                  onChange={setEmail}
+                  type="email"
+                />
+                <FloatingInput
+                  icon={Lock}
+                  label="Password"
+                  value={password}
+                  onChange={setPassword}
+                  type="password"
+                />
                 <div className="flex items-center justify-between text-xs">
-                  <label className="flex items-center gap-2 text-muted-foreground"><input type="checkbox" className="h-3.5 w-3.5" /> Remember me</label>
-                  <a href="#" className="font-medium text-primary hover:text-primary-hover">Forgot password?</a>
+                  <label className="flex items-center gap-2 text-muted-foreground">
+                    <input type="checkbox" className="h-3.5 w-3.5" /> Remember me
+                  </label>
+                  <a href="#" className="font-medium text-primary hover:text-primary-hover">
+                    Forgot password?
+                  </a>
                 </div>
                 <MagneticButton className="w-full">Sign in</MagneticButton>
               </form>
@@ -167,7 +201,13 @@ function LoginPage() {
         </div>
 
         <p className="mt-6 text-xs text-muted-foreground">
-          New here? <button onClick={simulateScan} className="font-medium text-primary hover:text-primary-hover">Try the demo</button>
+          New here?{" "}
+          <button
+            onClick={simulateScan}
+            className="font-medium text-primary hover:text-primary-hover"
+          >
+            Try the demo
+          </button>
         </p>
       </div>
     </div>
@@ -175,8 +215,18 @@ function LoginPage() {
 }
 
 function FloatingInput({
-  icon: Icon, label, value, onChange, type = "text",
-}: { icon: any; label: string; value: string; onChange: (v: string) => void; type?: string }) {
+  icon: Icon,
+  label,
+  value,
+  onChange,
+  type = "text",
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+}) {
   return (
     <div className="group relative">
       <Icon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition group-focus-within:text-primary" />

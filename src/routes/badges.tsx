@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import { Trophy, ArrowRight, TrendingUp, BarChart3, CheckCircle2, Target } from "lucide-react";
 import { useSession, type BadgeTier } from "@/lib/store";
 import { AppShell } from "@/components/AppShell";
@@ -7,29 +7,33 @@ import { Spotlight } from "@/components/effects/Spotlight";
 import { MagneticButton } from "@/components/MagneticButton";
 
 export const Route = createFileRoute("/badges")({
-  head: () => ({ meta: [{ title: "Achievements — Elevate" }, { name: "robots", content: "noindex" }] }),
+  head: () => ({
+    meta: [{ title: "Achievements — Elevate" }, { name: "robots", content: "noindex" }],
+  }),
   component: Badges,
 });
 
 // Badge images from public/badges/
 const BADGE_IMG: Record<BadgeTier, string | null> = {
-  Gold:   "/badges/gold.png",
+  Gold: "/badges/gold.png",
   Silver: "/badges/silver.png",
   Bronze: "/badges/bronze.png",
-  None:   null,
+  None: null,
 };
 
 const tierJobLabel: Record<BadgeTier, string> = {
-  Gold:   "Senior Employee",
+  Gold: "Senior Employee",
   Silver: "Junior Employee",
   Bronze: "Internship",
-  None:   "Needs Improvement",
+  None: "Needs Improvement",
 };
 
 function Badges() {
   const { authed, history, reset, stats } = useSession();
   const nav = useNavigate();
-  useEffect(() => { if (!authed) nav({ to: "/login" }); }, [authed, nav]);
+  useEffect(() => {
+    if (!authed) nav({ to: "/login" });
+  }, [authed, nav]);
 
   return (
     <AppShell>
@@ -38,11 +42,17 @@ function Badges() {
         <div className="flex items-end justify-between">
           <div>
             <div className="micro-label">Achievements</div>
-            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">Your badges</h1>
-            <p className="mt-2 text-muted-foreground">Every session lives here. Share them anywhere.</p>
+            <h1 className="mt-1 font-display text-3xl font-bold tracking-tight md:text-4xl">
+              Your badges
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Every session lives here. Share them anywhere.
+            </p>
           </div>
           <Link to="/select" onClick={reset}>
-            <MagneticButton><Trophy className="h-4 w-4" /> Earn another <ArrowRight className="h-4 w-4" /></MagneticButton>
+            <MagneticButton>
+              <Trophy className="h-4 w-4" /> Earn another <ArrowRight className="h-4 w-4" />
+            </MagneticButton>
           </Link>
         </div>
 
@@ -59,7 +69,9 @@ function Badges() {
           <div className="mt-6 flex flex-wrap gap-3">
             <div className="flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm">
               <span className="font-semibold">Current Badge:</span>
-              <span className="font-bold text-primary">{stats.currentBadge === "None" ? "No Badge" : `${stats.currentBadge} Badge`}</span>
+              <span className="font-bold text-primary">
+                {stats.currentBadge === "None" ? "No Badge" : `${stats.currentBadge} Badge`}
+              </span>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-sm">
               <span className="font-semibold">Recommended for:</span>
@@ -71,18 +83,27 @@ function Badges() {
         {/* Achievements legend */}
         <div className="mt-6 grid gap-3 md:grid-cols-3">
           {(["Gold", "Silver", "Bronze"] as BadgeTier[]).map((t) => (
-            <div key={t} className="flex items-center gap-3 rounded-xl border border-border bg-white p-4">
+            <div
+              key={t}
+              className="flex items-center gap-3 rounded-xl border border-border bg-white p-4"
+            >
               {BADGE_IMG[t] ? (
-                <img src={BADGE_IMG[t]!} alt={`${t} badge`} className="h-10 w-10 shrink-0 object-contain" />
+                <img
+                  src={BADGE_IMG[t]!}
+                  alt={`${t} badge`}
+                  className="h-10 w-10 shrink-0 object-contain"
+                />
               ) : (
                 <div className="h-10 w-10 shrink-0 rounded-full bg-surface-2" />
               )}
               <div>
                 <div className="text-sm font-bold">{t} Badge</div>
                 <div className="text-xs text-muted-foreground">
-                  {t === "Gold" ? "Score 90–100 · Senior Employee" :
-                   t === "Silver" ? "Score 75–89 · Junior Employee" :
-                   "Score 50–74 · Internship"}
+                  {t === "Gold"
+                    ? "Score 90–100 · Senior Employee"
+                    : t === "Silver"
+                      ? "Score 75–89 · Junior Employee"
+                      : "Score 50–74 · Internship"}
                 </div>
               </div>
             </div>
@@ -93,7 +114,9 @@ function Badges() {
         {history.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-dashed border-border p-16 text-center">
             <Trophy className="mx-auto h-8 w-8 text-muted-foreground" />
-            <p className="mt-3 text-sm text-muted-foreground">No badges yet. Complete your first assessment to earn one.</p>
+            <p className="mt-3 text-sm text-muted-foreground">
+              No badges yet. Complete your first assessment to earn one.
+            </p>
           </div>
         ) : (
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -115,8 +138,16 @@ function Badges() {
                     {h.tier === "None" ? "No Badge" : h.tier}
                   </span>
                 </div>
-                <div className="mt-5 font-display text-lg font-bold capitalize">{h.skill} · {h.testType} code</div>
-                <div className="mt-1 text-xs text-muted-foreground">{new Date(h.date).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}</div>
+                <div className="mt-5 font-display text-lg font-bold capitalize">
+                  {h.skill} · {h.testType} code
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {new Date(h.date).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </div>
 
                 {/* Job recommendation */}
                 <div className="mt-2 text-xs text-muted-foreground">
@@ -124,8 +155,13 @@ function Badges() {
                 </div>
 
                 <div className="mt-4 flex items-end justify-between">
-                  <span className="font-display text-3xl font-extrabold">{h.score}<span className="ml-1 text-sm font-medium text-muted-foreground">/100</span></span>
-                  <button className="text-xs font-medium text-primary hover:text-primary-hover">Share →</button>
+                  <span className="font-display text-3xl font-extrabold">
+                    {h.score}
+                    <span className="ml-1 text-sm font-medium text-muted-foreground">/100</span>
+                  </span>
+                  <button className="text-xs font-medium text-primary hover:text-primary-hover">
+                    Share →
+                  </button>
                 </div>
               </Spotlight>
             ))}
@@ -136,7 +172,15 @@ function Badges() {
   );
 }
 
-function StatCard({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+}) {
   return (
     <Spotlight className="surface-card card-hover relative p-5">
       <div className="flex items-center gap-2">

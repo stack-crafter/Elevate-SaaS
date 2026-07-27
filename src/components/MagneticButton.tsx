@@ -52,7 +52,8 @@ export function MagneticButton({
       className={`${base} ${styles[variant]} ${className}`}
       style={{
         transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
-        transition: "transform 250ms cubic-bezier(0.22,1,0.36,1), background-color 150ms, box-shadow 200ms",
+        transition:
+          "transform 250ms cubic-bezier(0.22,1,0.36,1), background-color 150ms, box-shadow 200ms",
       }}
     >
       <span className="relative z-10 flex items-center gap-2">{children}</span>
@@ -61,7 +62,10 @@ export function MagneticButton({
           key={r.id}
           className="pointer-events-none absolute rounded-full"
           style={{
-            left: r.x, top: r.y, width: 8, height: 8,
+            left: r.x,
+            top: r.y,
+            width: 8,
+            height: 8,
             background: variant === "primary" ? "rgba(255,255,255,0.5)" : "rgba(75,85,99,0.25)",
             transform: "translate(-50%, -50%) scale(1)",
             animation: "ripple 600ms ease-out forwards",

@@ -17,8 +17,16 @@ export function useTestSession(): UseTestSessionReturn {
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [evaluateError, setEvaluateError] = useState<string | null>(null);
 
-  const { skill, testType, history, answers, setQuestions, setQuestionsLoading, setQuestionsError, finalize } =
-    useSession();
+  const {
+    skill,
+    testType,
+    history,
+    answers,
+    setQuestions,
+    setQuestionsLoading,
+    setQuestionsError,
+    finalize,
+  } = useSession();
 
   const generateTest = useCallback(async () => {
     if (!skill || !testType) return;

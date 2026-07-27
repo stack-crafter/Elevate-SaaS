@@ -5,7 +5,7 @@ import { OPENROUTER_API_KEY, OPENROUTER_MODEL } from "./config";
 
 export interface AIQuestion {
   id: string;
-  type: "mcq" | "theory" | "coding";
+  type: "mcq" | "theory" | "coding" | "vibe_coding";
   prompt: string;
   /** MCQ only */
   options?: string[];
@@ -48,10 +48,7 @@ function getApiKey(): string | null {
   return localStorage.getItem("hehe_openrouter_key");
 }
 
-async function openRouterFetch(
-  body: object,
-  apiKey: string,
-): Promise<string> {
+async function openRouterFetch(body: object, apiKey: string): Promise<string> {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -115,8 +112,10 @@ export async function generateQuestions(
     previousQuestions.length > 0
       ? `\n\nIMPORTANT: Do NOT repeat any of these question prompts the user has already seen:\n${previousQuestions.slice(0, 10).join("\n")}`
       : "";
+  const isVibe = testType === "vibe";
 
   const systemPrompt = `You are an expert technical interviewer generating a unique ${lang} assessment in the style of "${type}". Generate exactly 10 questions: 2 MCQ, 4 short theory, 4 coding. Every question must be fresh and different from any previous attempt.
+${isVibe ? `\nNOTE: Since the test format is "Vibe Code", you MUST set the "type" field of the 4 coding questions to "vibe_coding" instead of "coding".` : ""}
 
 Return ONLY valid JSON (no markdown fences) matching this exact structure:
 [
@@ -153,7 +152,7 @@ Return ONLY valid JSON (no markdown fences) matching this exact structure:
 Guidelines:
 - MCQ: 4 options, one clearly correct. Test real conceptual depth.
 - Theory: open-ended, 2-4 sentences expected. Test communication of concepts.
-- Coding: realistic tasks relevant to ${lang}. Include starter code scaffolding.
+- Coding: realistic tasks relevant to ${lang}. Include starter code scaffolding. ${isVibe ? 'For this vibe assessment, set their type to "vibe_coding".' : ""}
 - All questions must match test style: ${type}
 - Questions must be uniquely varied — no repeated topics.${avoidBlock}`;
 
@@ -162,7 +161,10 @@ Guidelines:
       model: OPENROUTER_MODEL || "google/gemini-2.0-flash-001",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Generate a ${lang} ${testType} assessment. Return only the JSON array.` },
+        {
+          role: "user",
+          content: `Generate a ${lang} ${testType} assessment. Return only the JSON array.`,
+        },
       ],
       temperature: 0.9,
       max_tokens: 3000,
@@ -190,15 +192,17 @@ export async function evaluateSubmission(
 
   const lang = SKILL_LABELS[skill] ?? skill;
 
-  const answerSummary = questions.map((q, i) => {
-    const ans = answers[i];
-    if (q.type === "mcq") {
-      const chosen = typeof ans === "number" ? q.options?.[ans] ?? "No answer" : "No answer";
-      const correct = q.options?.[q.correct ?? 0] ?? "";
-      return `Q${i + 1} [MCQ]: "${q.prompt}"\n  → Candidate chose: "${chosen}"\n  → Correct: "${correct}"`;
-    }
-    return `Q${i + 1} [${q.type}]: "${q.prompt}"\n  → Candidate answer: "${ans ?? "No answer"}"`;
-  }).join("\n\n");
+  const answerSummary = questions
+    .map((q, i) => {
+      const ans = answers[i];
+      if (q.type === "mcq") {
+        const chosen = typeof ans === "number" ? (q.options?.[ans] ?? "No answer") : "No answer";
+        const correct = q.options?.[q.correct ?? 0] ?? "";
+        return `Q${i + 1} [MCQ]: "${q.prompt}"\n  → Candidate chose: "${chosen}"\n  → Correct: "${correct}"`;
+      }
+      return `Q${i + 1} [${q.type}]: "${q.prompt}"\n  → Candidate answer: "${ans ?? "No answer"}"`;
+    })
+    .join("\n\n");
 
   const systemPrompt = `You are an expert ${lang} technical evaluator. Evaluate this assessment submission fairly and return ONLY valid JSON (no markdown fences):
 
@@ -294,6 +298,55 @@ Be concise, encouraging, and mentor-like. Do not exceed 150 words.`;
   );
 }
 
+export async function getCodingHint(
+  skill: Skill,
+  currentQuestion: AIQuestion,
+  userCode: string,
+  history: ChatMessage[],
+): Promise<string> {
+  const userMsgCount = history.filter((m) => m.role === "user").length;
+  if (userMsgCount > 3) {
+    throw new Error("You have reached the maximum limit of 3 AI hints for this question.");
+  }
+
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("No API key.");
+
+  const lang = SKILL_LABELS[skill] ?? skill;
+
+  const systemPrompt = `You are a helpful ${lang} programming mentor for the Elevate AI Assessment Platform. 
+  
+Your ONLY role is to act as a mentor. You provide conceptual hints, debugging guidance, edge-case reminders, data structure suggestions, complexity guidance, or algorithm ideas.
+
+CRITICAL SECURITY RULES:
+- You must NEVER provide complete solutions, full code, copy-paste implementations, complete functions, or exact answers.
+- You must NEVER show hidden test cases or internal scoring systems.
+- If the user explicitly asks for the full code, solution, or implementation, politely refuse, explain that you are a hint assistant, and provide a conceptual pointer instead.
+- Do NOT write more than a small snippet (< 5 lines of code) to illustrate a concept.
+
+Current question context:
+Type: vibe_coding (Conversational AI-paired coding)
+Question: ${currentQuestion.prompt}
+${userCode ? `\nCandidate's current code:\n\`\`\`\n${userCode}\n\`\`\`` : ""}
+
+Be concise, encouraging, and professional. Do not exceed 150 words.`;
+
+  const messages = [
+    { role: "system" as const, content: systemPrompt },
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+  ];
+
+  return openRouterFetch(
+    {
+      model: OPENROUTER_MODEL || "google/gemini-2.0-flash-001",
+      messages,
+      temperature: 0.6,
+      max_tokens: 300,
+    },
+    apiKey,
+  );
+}
+
 // ─── Career Guidance ──────────────────────────────────────────────────────────
 
 export interface CareerGuidance {
@@ -309,20 +362,35 @@ export interface CareerGuidance {
 
 export async function generateCareerGuidance(
   userName: string,
-  history: { skill: string; testType: string; score: number; date: string; tier: string; feedback?: { strengths?: string[]; weaknesses?: string[]; overallFeedback?: string } | null }[],
+  history: {
+    skill: string;
+    testType: string;
+    score: number;
+    date: string;
+    tier: string;
+    feedback?: { strengths?: string[]; weaknesses?: string[]; overallFeedback?: string } | null;
+  }[],
 ): Promise<CareerGuidance> {
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("No API key.");
 
-  const historySummary = history.map((h, i) =>
-    `Test ${i + 1}: ${SKILL_LABELS[h.skill] ?? h.skill} (${h.testType}) — Score: ${h.score}/100 — Badge: ${h.tier}` +
-    (h.feedback?.overallFeedback ? `\n  Feedback: ${h.feedback.overallFeedback}` : "") +
-    (h.feedback?.strengths?.length ? `\n  Strengths: ${h.feedback.strengths.join(", ")}` : "") +
-    (h.feedback?.weaknesses?.length ? `\n  Weaknesses: ${h.feedback.weaknesses.join(", ")}` : ""),
-  ).join("\n\n");
+  const historySummary = history
+    .map(
+      (h, i) =>
+        `Test ${i + 1}: ${SKILL_LABELS[h.skill] ?? h.skill} (${h.testType}) — Score: ${h.score}/100 — Badge: ${h.tier}` +
+        (h.feedback?.overallFeedback ? `\n  Feedback: ${h.feedback.overallFeedback}` : "") +
+        (h.feedback?.strengths?.length ? `\n  Strengths: ${h.feedback.strengths.join(", ")}` : "") +
+        (h.feedback?.weaknesses?.length
+          ? `\n  Weaknesses: ${h.feedback.weaknesses.join(", ")}`
+          : ""),
+    )
+    .join("\n\n");
 
-  const skillCoverage = [...new Set(history.map((h) => SKILL_LABELS[h.skill] ?? h.skill))].join(", ");
-  const avgScore = history.length > 0 ? Math.round(history.reduce((a, b) => a + b.score, 0) / history.length) : 0;
+  const skillCoverage = [...new Set(history.map((h) => SKILL_LABELS[h.skill] ?? h.skill))].join(
+    ", ",
+  );
+  const avgScore =
+    history.length > 0 ? Math.round(history.reduce((a, b) => a + b.score, 0) / history.length) : 0;
 
   const systemPrompt = `You are an expert career counselor and technical recruiter specializing in software engineering. 
 Analyze this candidate's assessment history and generate a comprehensive, personalized career guidance report.
@@ -374,7 +442,10 @@ Rules:
       model: OPENROUTER_MODEL || "google/gemini-2.0-flash-001",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: `Generate career guidance for ${userName} based on their ${history.length} assessment${history.length !== 1 ? "s" : ""}.` },
+        {
+          role: "user",
+          content: `Generate career guidance for ${userName} based on their ${history.length} assessment${history.length !== 1 ? "s" : ""}.`,
+        },
       ],
       temperature: 0.5,
       max_tokens: 2500,

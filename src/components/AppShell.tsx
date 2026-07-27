@@ -19,16 +19,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-border bg-surface-nav/80 backdrop-blur-xl md:flex">
         <div className="flex items-center gap-2 px-5 py-6">
           <div className="h-8 w-8 overflow-hidden rounded-md">
-            <img
-              src="/elogo.png"
-              alt="Elevate Logo"
-              className="h-full w-full object-contain"
-            />
+            <img src="/elogo.png" alt="Elevate Logo" className="h-full w-full object-contain" />
           </div>
 
-          <div className="font-display text-[15px] font-bold tracking-tight">
-            Elevate
-          </div>
+          <div className="font-display text-[15px] font-bold tracking-tight">Elevate</div>
         </div>
         <nav className="flex-1 px-3 py-2">
           {nav.map((n) => {
@@ -68,9 +62,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-[13px] font-medium">{user?.name ?? "Guest"}</div>
-              <div className="truncate text-[11px] text-muted-foreground">{user?.email ?? "signed in"}</div>
+              <div className="truncate text-[11px] text-muted-foreground">
+                {user?.email ?? "signed in"}
+              </div>
             </div>
-            <Link to="/login" onClick={logout} className="rounded p-1.5 text-muted-foreground hover:bg-surface-hover">
+            <Link
+              to="/login"
+              onClick={logout}
+              className="rounded p-1.5 text-muted-foreground hover:bg-surface-hover"
+            >
               <LogOut className="h-3.5 w-3.5" />
             </Link>
           </div>

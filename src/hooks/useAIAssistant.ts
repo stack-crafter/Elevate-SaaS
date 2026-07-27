@@ -35,18 +35,15 @@ export function useAIAssistant(
           currentQuestion.type === "coding"
             ? String(currentAnswer ?? "")
             : currentQuestion.type === "theory"
-            ? String(currentAnswer ?? "")
-            : "";
+              ? String(currentAnswer ?? "")
+              : "";
 
         const reply = await getHint(skill, currentQuestion, userCode, updatedHistory);
         setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Failed to get hint";
         setError(msg);
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: `⚠️ ${msg}` },
-        ]);
+        setMessages((prev) => [...prev, { role: "assistant", content: `⚠️ ${msg}` }]);
       } finally {
         setIsLoading(false);
       }

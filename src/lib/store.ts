@@ -1,19 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AIQuestion, EvaluationResult } from "./openrouter";
+import type { AIQuestion, EvaluationResult, ChatMessage } from "./openrouter";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type Skill =
-  | "java"
-  | "python"
-  | "cpp"
-  | "flutter"
-  | "react"
-  | "nodejs"
-  | "ai"
-  | "ml"
-  | "datascience";
+  "java" | "python" | "cpp" | "flutter" | "react" | "nodejs" | "ai" | "ml" | "datascience";
 
 export type TestType = "pure" | "vibe" | "experience";
 
@@ -67,6 +59,9 @@ export interface SessionState {
   // Aggregate statistics (persisted)
   stats: Statistics;
 
+  // Vibe Coding chat history and hint counts per question
+  vibeChats: Record<string, { history: ChatMessage[]; hintCount: number }>;
+
   // ─── Actions ────────────────────────────────────────────────────────────────
   login: (user: { name: string; email: string }) => void;
   logout: () => void;
@@ -80,6 +75,9 @@ export interface SessionState {
   setQuestionsError: (e: string | null) => void;
 
   setAnswer: (i: number, v: number | string) => void;
+
+  addVibeMessage: (questionId: string, message: ChatMessage) => void;
+  incrementVibeHint: (questionId: string) => void;
 
   /** Called after AI evaluation completes. Returns the badge tier. */
   finalize: (score: number, feedback?: EvaluationResult | null) => BadgeTier;
@@ -99,10 +97,14 @@ export function tierFor(score: number): BadgeTier {
 
 export function jobFor(tier: BadgeTier): string {
   switch (tier) {
-    case "Gold":   return "Senior Employee";
-    case "Silver": return "Junior Employee";
-    case "Bronze": return "Internship";
-    default:       return "Needs Improvement";
+    case "Gold":
+      return "Senior Employee";
+    case "Silver":
+      return "Junior Employee";
+    case "Bronze":
+      return "Internship";
+    default:
+      return "Needs Improvement";
   }
 }
 
@@ -139,6 +141,7 @@ export const useSession = create<SessionState>()(
 
       history: [],
       stats: { ...DEFAULT_STATS },
+      vibeChats: {},
 
       // ─── Auth ──────────────────────────────────────────────────────────────
       login: (user) => set({ authed: true, user }),
@@ -158,6 +161,7 @@ export const useSession = create<SessionState>()(
           answers: Array(10).fill(null),
           score: null,
           aiFeedback: null,
+          vibeChats: {},
         }),
       setTestType: (t) =>
         set({
@@ -168,6 +172,7 @@ export const useSession = create<SessionState>()(
           answers: Array(10).fill(null),
           score: null,
           aiFeedback: null,
+          vibeChats: {},
         }),
 
       // ─── Questions ─────────────────────────────────────────────────────────
@@ -180,6 +185,26 @@ export const useSession = create<SessionState>()(
         const a = [...get().answers];
         a[i] = v;
         set({ answers: a });
+      },
+
+      addVibeMessage: (qId, msg) => {
+        const chats = { ...get().vibeChats };
+        const chat = chats[qId] ?? { history: [], hintCount: 0 };
+        chats[qId] = {
+          ...chat,
+          history: [...chat.history, msg],
+        };
+        set({ vibeChats: chats });
+      },
+
+      incrementVibeHint: (qId) => {
+        const chats = { ...get().vibeChats };
+        const chat = chats[qId] ?? { history: [], hintCount: 0 };
+        chats[qId] = {
+          ...chat,
+          hintCount: chat.hintCount + 1,
+        };
+        set({ vibeChats: chats });
       },
 
       // ─── Finalize ──────────────────────────────────────────────────────────
@@ -232,6 +257,7 @@ export const useSession = create<SessionState>()(
           answers: Array(10).fill(null),
           score: null,
           aiFeedback: null,
+          vibeChats: {},
         }),
     }),
     { name: "elevate-assess-session-v2" },

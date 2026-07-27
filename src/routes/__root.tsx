@@ -48,10 +48,20 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
         </p>
         <div className="mt-6 flex justify-center gap-2">
           <button
-            onClick={() => { router.invalidate(); reset(); }}
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary-hover"
-          >Try again</button>
-          <a href="/" className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-surface-hover">Go home</a>
+          >
+            Try again
+          </button>
+          <a
+            href="/"
+            className="rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-surface-hover"
+          >
+            Go home
+          </a>
         </div>
       </div>
     </div>
@@ -102,8 +112,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <head><HeadContent /></head>
-      <body>{children}<Scripts /></body>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
     </html>
   );
 }
