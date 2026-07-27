@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
-import { generateQuestions, evaluateSubmission, type EvaluationResult } from "@/lib/openrouter";
-import { useSession } from "@/lib/store";
+import type { EvaluationResult } from "@/models/assessment";
+import { generateQuestions, evaluateSubmission } from "@/data/repositories/assessmentRepository";
+import { useSession } from "@/business/store/sessionStore";
 
 export interface UseTestSessionReturn {
   isGenerating: boolean;

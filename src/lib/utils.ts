@@ -1,6 +1,3 @@
-import { clsx, type ClassValue } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+﻿// ─── Backward-Compatibility Shim ─────────────────────────────────────────────
+// src/lib/utils.ts → re-exports from Utilities layer
+export { cn } from "@/utilities/cn";

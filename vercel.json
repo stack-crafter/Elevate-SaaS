@@ -1,1 +1,6 @@
-{"framework":"tanstack-start","buildCommand":"npm run build","outputDirectory":"dist"}
+{
+  "framework": "tanstack-start",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist/client",
+  "installCommand": "npm install"
+}

@@ -1,8 +1,8 @@
 import { useState, useCallback } from "react";
-import { getCodingHint, type ChatMessage } from "@/lib/openrouter";
-import { useSession } from "@/lib/store";
-import type { Skill } from "@/lib/store";
-import type { AIQuestion } from "@/lib/openrouter";
+import type { ChatMessage, AIQuestion } from "@/models/assessment";
+import { useSession } from "@/business/store/sessionStore";
+import type { Skill } from "@/models/session";
+import { getCodingHint } from "@/data/repositories/hintRepository";
 
 export interface UseVibeAssistantReturn {
   messages: ChatMessage[];

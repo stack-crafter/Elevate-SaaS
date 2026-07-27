@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import React, { useState, useEffect } from "react";
-import { QrCode, Mail, Lock, CheckCircle2, User } from "lucide-react";
+import { Mail, Lock, CheckCircle2, User, AlertCircle } from "lucide-react";
 import { MagneticButton } from "@/components/MagneticButton";
 import { Beams } from "@/components/effects/Beams";
 import { useSession } from "@/lib/store";
@@ -8,25 +8,36 @@ import { useQrLogin } from "@/hooks/useQrLogin";
 // @ts-expect-error – qrcode.react types
 import { QRCodeSVG } from "qrcode.react";
 
+import { signIn, pairUser } from "@/data/repositories/authRepository";
+
 export const Route = createFileRoute("/login")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    qr_session: typeof search.qr_session === "string" ? search.qr_session : "",
+  }),
   head: () => ({ meta: [{ title: "Sign in — Elevate" }, { name: "robots", content: "noindex" }] }),
   component: LoginPage,
 });
 
 function LoginPage() {
+  const search = Route.useSearch();
+  const targetSession = search.qr_session;
+
   const [tab, setTab] = useState<"qr" | "manual">("qr");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [pairedSuccess, setPairedSuccess] = useState(false);
 
+  const currentUser = useSession((s) => s.user);
   const login = useSession((s) => s.login);
   const nav = useNavigate();
 
   // ─── QR hook ──────────────────────────────────────────────────────────────
-  const { qrValue, isConnected, scannedName, scannedEmail, simulateScan, secondsUntilRefresh } =
-    useQrLogin();
+  const { qrValue, isConnected, scannedName, scannedEmail, secondsUntilRefresh } = useQrLogin();
 
-  // Navigate after QR approval with a short delay to show candidate info
+  // Navigate after QR approval on desktop with a short delay to show candidate info
   useEffect(() => {
     if (isConnected && scannedName && scannedEmail) {
       const t = setTimeout(() => {
@@ -37,16 +48,136 @@ function LoginPage() {
     }
   }, [isConnected, scannedName, scannedEmail, login, nav]);
 
+  // ─── Mobile QR Pairing Handler ────────────────────────────────────────────
+  const handleApproveSession = async (userEmail: string, userName: string) => {
+    if (!targetSession) return;
+    setLoading(true);
+    try {
+      await pairUser(targetSession, userEmail, userName);
+      setPairedSuccess(true);
+    } catch (err) {
+      console.error("Failed to pair session:", err);
+      setError(true);
+      setErrorMessage("Failed to approve QR session in Firestore.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ─── Manual login ─────────────────────────────────────────────────────────
-  const submit = () => {
+  const submit = async () => {
     if (!email || !password) {
       setError(true);
-      setTimeout(() => setError(false), 400);
+      setErrorMessage("Please enter both email and password.");
+      setTimeout(() => setError(false), 2000);
       return;
     }
-    login({ name: email.split("@")[0] || "Candidate", email });
-    nav({ to: "/select" });
+    setLoading(true);
+    setErrorMessage("");
+    try {
+      // Authenticate strictly with Firebase Auth (User must exist in Firebase)
+      const user = await signIn(email, password);
+      if (user) {
+        const candidateName = user.displayName || email.split("@")[0] || "Candidate";
+        const candidateEmail = user.email || email;
+
+        // If scanning on mobile via URL, pair the desktop session
+        if (targetSession) {
+          await handleApproveSession(candidateEmail, candidateName);
+        } else {
+          login({ name: candidateName, email: candidateEmail });
+          nav({ to: "/select" });
+        }
+      } else {
+        setError(true);
+        setErrorMessage("Authentication failed. User must exist in Firebase.");
+      }
+    } catch (err: unknown) {
+      console.error("Firebase Auth error:", err);
+      const message = err instanceof Error ? err.message : "";
+      setError(true);
+      setErrorMessage(
+        message.includes("auth/user-not-found") || message.includes("auth/invalid-credential")
+          ? "Invalid credentials. Candidate account must exist in Firebase."
+          : "Authentication error. Please check your credentials.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (targetSession) {
+    return (
+      <div className="relative min-h-screen overflow-hidden">
+        <Beams />
+        <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10">
+          <div className="surface-card w-full p-7 text-center animate-fade-up">
+            <h1 className="font-display text-2xl font-bold">Authorize Desktop Sign-In</h1>
+            <p className="mt-2 text-sm text-muted-foreground">
+              A desktop device is requesting to sign in using your Elevate account.
+            </p>
+
+            {pairedSuccess ? (
+              <div className="mt-6 flex flex-col items-center gap-3">
+                <CheckCircle2 className="h-12 w-12 text-success" />
+                <div className="text-base font-semibold text-foreground">Desktop Authorized!</div>
+                <p className="text-xs text-muted-foreground">
+                  You may close this tab on your phone. The desktop app is now signing in
+                  automatically.
+                </p>
+              </div>
+            ) : currentUser ? (
+              <div className="mt-6 space-y-4">
+                <div className="rounded-lg border border-border bg-surface-1 p-3 text-left text-sm">
+                  <div className="font-semibold">{currentUser.name}</div>
+                  <div className="text-xs text-muted-foreground">{currentUser.email}</div>
+                </div>
+                <MagneticButton
+                  className="w-full"
+                  disabled={loading}
+                  onClick={() => handleApproveSession(currentUser.email, currentUser.name)}
+                >
+                  {loading ? "Approving..." : "Approve Sign-In"}
+                </MagneticButton>
+              </div>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  submit();
+                }}
+                className="mt-6 space-y-4 text-left"
+              >
+                {errorMessage && (
+                  <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-xs font-medium text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+                <FloatingInput
+                  icon={Mail}
+                  label="Email address"
+                  value={email}
+                  onChange={setEmail}
+                  type="email"
+                />
+                <FloatingInput
+                  icon={Lock}
+                  label="Password"
+                  value={password}
+                  onChange={setPassword}
+                  type="password"
+                />
+                <MagneticButton className="w-full" disabled={loading}>
+                  {loading ? "Authenticating..." : "Sign in & Authorize Desktop"}
+                </MagneticButton>
+              </form>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -152,16 +283,9 @@ function LoginPage() {
                   </p>
                 )}
 
-                <p className="mt-2 text-center text-xs text-muted-foreground">
+                <p className="mt-3 text-center text-xs text-muted-foreground">
                   Scan with the Elevate mobile app to sign in.
                 </p>
-                <button
-                  onClick={simulateScan}
-                  disabled={isConnected}
-                  className="mt-3 text-xs font-medium text-primary hover:text-primary-hover disabled:opacity-50"
-                >
-                  Simulate scan →
-                </button>
               </div>
             ) : (
               <form
@@ -172,6 +296,14 @@ function LoginPage() {
                 className={`animate-fade-up space-y-4 ${error ? "animate-[shake_0.3s]" : ""}`}
               >
                 <style>{`@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }`}</style>
+
+                {errorMessage && (
+                  <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-xs font-medium text-destructive">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{errorMessage}</span>
+                  </div>
+                )}
+
                 <FloatingInput
                   icon={Mail}
                   label="Email address"
@@ -194,21 +326,13 @@ function LoginPage() {
                     Forgot password?
                   </a>
                 </div>
-                <MagneticButton className="w-full">Sign in</MagneticButton>
+                <MagneticButton className="w-full" disabled={loading}>
+                  {loading ? "Authenticating..." : "Sign in"}
+                </MagneticButton>
               </form>
             )}
           </div>
         </div>
-
-        <p className="mt-6 text-xs text-muted-foreground">
-          New here?{" "}
-          <button
-            onClick={simulateScan}
-            className="font-medium text-primary hover:text-primary-hover"
-          >
-            Try the demo
-          </button>
-        </p>
       </div>
     </div>
   );
