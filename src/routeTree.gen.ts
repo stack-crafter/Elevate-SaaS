@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestRouteImport } from './routes/test'
 import { Route as SelectRouteImport } from './routes/select'
 import { Route as ResultsRouteImport } from './routes/results'
+import { Route as QrPairRouteImport } from './routes/qr-pair'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as BadgesRouteImport } from './routes/badges'
@@ -31,6 +32,11 @@ const SelectRoute = SelectRouteImport.update({
 const ResultsRoute = ResultsRouteImport.update({
   id: '/results',
   path: '/results',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const QrPairRoute = QrPairRouteImport.update({
+  id: '/qr-pair',
+  path: '/qr-pair',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/badges': typeof BadgesRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/qr-pair': typeof QrPairRoute
   '/results': typeof ResultsRoute
   '/select': typeof SelectRoute
   '/test': typeof TestRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/badges': typeof BadgesRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/qr-pair': typeof QrPairRoute
   '/results': typeof ResultsRoute
   '/select': typeof SelectRoute
   '/test': typeof TestRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/badges': typeof BadgesRoute
   '/dashboard': typeof DashboardRoute
   '/login': typeof LoginRoute
+  '/qr-pair': typeof QrPairRoute
   '/results': typeof ResultsRoute
   '/select': typeof SelectRoute
   '/test': typeof TestRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/badges'
     | '/dashboard'
     | '/login'
+    | '/qr-pair'
     | '/results'
     | '/select'
     | '/test'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/badges'
     | '/dashboard'
     | '/login'
+    | '/qr-pair'
     | '/results'
     | '/select'
     | '/test'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/badges'
     | '/dashboard'
     | '/login'
+    | '/qr-pair'
     | '/results'
     | '/select'
     | '/test'
@@ -129,6 +141,7 @@ export interface RootRouteChildren {
   BadgesRoute: typeof BadgesRoute
   DashboardRoute: typeof DashboardRoute
   LoginRoute: typeof LoginRoute
+  QrPairRoute: typeof QrPairRoute
   ResultsRoute: typeof ResultsRoute
   SelectRoute: typeof SelectRoute
   TestRoute: typeof TestRoute
@@ -155,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/results'
       fullPath: '/results'
       preLoaderRoute: typeof ResultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/qr-pair': {
+      id: '/qr-pair'
+      path: '/qr-pair'
+      fullPath: '/qr-pair'
+      preLoaderRoute: typeof QrPairRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -201,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   BadgesRoute: BadgesRoute,
   DashboardRoute: DashboardRoute,
   LoginRoute: LoginRoute,
+  QrPairRoute: QrPairRoute,
   ResultsRoute: ResultsRoute,
   SelectRoute: SelectRoute,
   TestRoute: TestRoute,

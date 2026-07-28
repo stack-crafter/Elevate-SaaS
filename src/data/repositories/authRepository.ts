@@ -10,6 +10,7 @@ import {
   pairUserToQRLoginSession as fbPairQR,
   expireQRLoginSession as fbExpireQR,
   validateQRLoginSession as fbValidateQR,
+  getQRLoginSession as fbGetQRSession,
   QRSession,
 } from "@/firebase";
 
@@ -80,16 +81,22 @@ export async function updateQRSession(sessionId: string, data: Partial<QRSession
 export async function pairUser(
   sessionId: string,
   email: string,
-  displayName: string,
+  name: string,
   jobSeekerID?: string,
 ): Promise<void> {
-  await fbPairQR(sessionId, email, displayName, jobSeekerID);
+  await fbPairQR(sessionId, email, name, jobSeekerID);
 }
 
 export async function expireSession(sessionId: string): Promise<void> {
   await fbExpireQR(sessionId);
 }
 
-export async function validateSession(sessionId: string): Promise<boolean> {
+/** Returns the full QRSession if valid (pending + not expired), else null */
+export async function validateSession(sessionId: string): Promise<QRSession | null> {
   return fbValidateQR(sessionId);
+}
+
+/** Returns the full session document regardless of status */
+export async function getQRSessionData(sessionId: string): Promise<QRSession | null> {
+  return fbGetQRSession(sessionId);
 }

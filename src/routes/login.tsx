@@ -7,37 +7,38 @@ import { useSession } from "@/lib/store";
 import { useQrLogin } from "@/hooks/useQrLogin";
 import { QRCodeSVG } from "qrcode.react";
 
-import { signIn, pairUser } from "@/data/repositories/authRepository";
+import { signIn } from "@/data/repositories/authRepository";
 import { getUserProfile } from "@/firebase/users";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): { qr_session?: string } => ({
-    qr_session: typeof search.qr_session === "string" ? search.qr_session : undefined,
-  }),
+  validateSearch: (): Record<string, never> => ({}),
   head: () => ({ meta: [{ title: "Sign in — Elevate" }, { name: "robots", content: "noindex" }] }),
   component: LoginPage,
 });
 
 function LoginPage() {
-  const search = Route.useSearch();
-  const targetSession = search.qr_session;
-
   const [tab, setTab] = useState<"qr" | "manual">("qr");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [pairedSuccess, setPairedSuccess] = useState(false);
 
-  const currentUser = useSession((s) => s.user);
   const login = useSession((s) => s.login);
   const nav = useNavigate();
 
   // ─── QR hook ──────────────────────────────────────────────────────────────
-  const { qrValue, isConnected, scannedName, scannedEmail, scannedUid, secondsUntilRefresh } = useQrLogin();
+  const {
+    qrValue,
+    isConnected,
+    isExpired,
+    scannedName,
+    scannedEmail,
+    scannedUid,
+    secondsUntilRefresh,
+  } = useQrLogin();
 
-  // Navigate after QR approval on desktop with a short delay to show candidate info
+  // Navigate after QR pair detected on desktop
   useEffect(() => {
     if (isConnected && scannedName && scannedEmail) {
       const t = setTimeout(() => {
@@ -47,30 +48,6 @@ function LoginPage() {
       return () => clearTimeout(t);
     }
   }, [isConnected, scannedName, scannedEmail, scannedUid, login, nav]);
-
-  // ─── Mobile QR Pairing Handler ────────────────────────────────────────────
-  const handleApproveSession = async (userUid: string, userEmail: string, userName: string) => {
-    if (!targetSession) return;
-    setLoading(true);
-    try {
-      // Always try to get the real name from jobSeekers collection
-      let realName = userName;
-      try {
-        const profile = await getUserProfile(userUid);
-        if (profile?.name) realName = profile.name;
-      } catch {
-        // fallback to auth displayName if Firestore lookup fails
-      }
-      await pairUser(targetSession, userEmail, realName, userUid);
-      setPairedSuccess(true);
-    } catch (err) {
-      console.error("Failed to pair session:", err);
-      setError(true);
-      setErrorMessage("Failed to approve QR session in Firestore.");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // ─── Manual login ─────────────────────────────────────────────────────────
   const submit = async () => {
@@ -83,27 +60,19 @@ function LoginPage() {
     setLoading(true);
     setErrorMessage("");
     try {
-      // Authenticate strictly with Firebase Auth (User must exist in Firebase)
       const user = await signIn(email, password);
       if (user) {
         const candidateEmail = user.email || email;
-
-        // If scanning on mobile via URL, pair the desktop session
-        if (targetSession) {
-          await handleApproveSession(user.uid, candidateEmail, user.displayName || email.split("@")[0] || "Candidate");
-        } else {
-          // Fetch real name from jobSeekers collection for local login too
-          let candidateName = user.displayName || email.split("@")[0] || "Candidate";
-          try {
-            const profile = await getUserProfile(user.uid);
-            if (profile?.name) candidateName = profile.name;
-          } catch { /* fallback */ }
-          login({ name: candidateName, email: candidateEmail });
-          nav({ to: "/select" });
-        }
+        let candidateName = user.displayName || email.split("@")[0] || "Candidate";
+        try {
+          const profile = await getUserProfile(user.uid);
+          if (profile?.name) candidateName = profile.name;
+        } catch { /* fallback */ }
+        login({ uid: user.uid, name: candidateName, email: candidateEmail });
+        nav({ to: "/select" });
       } else {
         setError(true);
-        setErrorMessage("Authentication failed. User must exist in Firebase.");
+        setErrorMessage("Authentication failed. Account must exist in Firebase.");
       }
     } catch (err: unknown) {
       console.error("Firebase Auth error:", err);
@@ -111,86 +80,13 @@ function LoginPage() {
       setError(true);
       setErrorMessage(
         message.includes("auth/user-not-found") || message.includes("auth/invalid-credential")
-          ? "Invalid credentials. Candidate account must exist in Firebase."
+          ? "Invalid credentials. Account must exist in Firebase."
           : "Authentication error. Please check your credentials.",
       );
     } finally {
       setLoading(false);
     }
   };
-
-  if (targetSession) {
-    return (
-      <div className="relative min-h-screen overflow-hidden">
-        <Beams />
-        <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10">
-          <div className="surface-card w-full p-7 text-center animate-fade-up">
-            <h1 className="font-display text-2xl font-bold">Authorize Desktop Sign-In</h1>
-            <p className="mt-2 text-sm text-muted-foreground">
-              A desktop device is requesting to sign in using your Elevate account.
-            </p>
-
-            {pairedSuccess ? (
-              <div className="mt-6 flex flex-col items-center gap-3">
-                <CheckCircle2 className="h-12 w-12 text-success" />
-                <div className="text-base font-semibold text-foreground">Desktop Authorized!</div>
-                <p className="text-xs text-muted-foreground">
-                  You may close this tab on your phone. The desktop app is now signing in
-                  automatically.
-                </p>
-              </div>
-            ) : currentUser ? (
-              <div className="mt-6 space-y-4">
-                <div className="rounded-lg border border-border bg-surface-1 p-3 text-left text-sm">
-                  <div className="font-semibold">{currentUser.name}</div>
-                  <div className="text-xs text-muted-foreground">{currentUser.email}</div>
-                </div>
-                <MagneticButton
-                  className="w-full"
-                  disabled={loading}
-                  onClick={() => handleApproveSession(currentUser.uid, currentUser.email, currentUser.name)}
-                >
-                  {loading ? "Approving..." : "Approve Sign-In"}
-                </MagneticButton>
-              </div>
-            ) : (
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  submit();
-                }}
-                className="mt-6 space-y-4 text-left"
-              >
-                {errorMessage && (
-                  <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-xs font-medium text-destructive">
-                    <AlertCircle className="h-4 w-4 shrink-0" />
-                    <span>{errorMessage}</span>
-                  </div>
-                )}
-                <FloatingInput
-                  icon={Mail}
-                  label="Email address"
-                  value={email}
-                  onChange={setEmail}
-                  type="email"
-                />
-                <FloatingInput
-                  icon={Lock}
-                  label="Password"
-                  value={password}
-                  onChange={setPassword}
-                  type="password"
-                />
-                <MagneticButton className="w-full" disabled={loading}>
-                  {loading ? "Authenticating..." : "Sign in & Authorize Desktop"}
-                </MagneticButton>
-              </form>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -200,7 +96,6 @@ function LoginPage() {
           <div className="h-9 w-9 overflow-hidden rounded-lg">
             <img src="/elogo.png" alt="Elevate Logo" className="h-full w-full object-contain" />
           </div>
-
           <span className="font-display text-lg font-bold tracking-tight">Elevate</span>
         </div>
 
@@ -208,6 +103,7 @@ function LoginPage() {
           <h1 className="font-display text-2xl font-bold">Welcome back</h1>
           <p className="mt-1 text-sm text-muted-foreground">Sign in to continue your assessment.</p>
 
+          {/* Tab switcher */}
           <div className="relative mt-6 flex rounded-lg border border-border bg-surface-1 p-1 text-sm">
             {(["qr", "manual"] as const).map((t) => (
               <button
@@ -228,11 +124,20 @@ function LoginPage() {
             />
           </div>
 
-          <div className="mt-6 min-h-[280px]">
+          <div className="mt-6 min-h-[300px]">
             {tab === "qr" ? (
               <div className="animate-fade-up flex flex-col items-center">
-                <div className="relative h-52 w-52 rounded-xl border border-border bg-surface-1 p-4">
-                  {/* corner tracing */}
+                {/* QR Code container */}
+                <div
+                  className={`relative h-52 w-52 rounded-xl border p-4 transition-all duration-300 ${
+                    isExpired
+                      ? "border-amber-400/60 bg-amber-50/5"
+                      : isConnected
+                        ? "border-green-400/60 bg-green-50/5"
+                        : "border-border bg-surface-1"
+                  }`}
+                >
+                  {/* Corner tracers */}
                   {[
                     "top-0 left-0 border-l-2 border-t-2 rounded-tl-lg",
                     "top-0 right-0 border-r-2 border-t-2 rounded-tr-lg",
@@ -242,37 +147,51 @@ function LoginPage() {
                     <span
                       key={c}
                       className={`absolute h-5 w-5 ${c}`}
-                      style={{ borderColor: "#4b5563" }}
+                      style={{ borderColor: isConnected ? "#22c55e" : "#4b5563" }}
                     />
                   ))}
 
                   {/* Real QR code */}
-                  <div className="flex h-full items-center justify-center rounded-md overflow-hidden">
-                    <QRCodeSVG
-                      value={qrValue}
-                      size={160}
-                      bgColor="transparent"
-                      fgColor="#1a1a1a"
-                      level="M"
-                    />
+                  <div
+                    className={`flex h-full items-center justify-center rounded-md overflow-hidden transition-opacity duration-300 ${
+                      isExpired ? "opacity-20" : "opacity-100"
+                    }`}
+                  >
+                    {qrValue && (
+                      <QRCodeSVG
+                        value={qrValue}
+                        size={160}
+                        bgColor="transparent"
+                        fgColor="#1a1a1a"
+                        level="M"
+                      />
+                    )}
                   </div>
 
-                  {!isConnected && (
+                  {/* Scanning animation */}
+                  {!isConnected && !isExpired && (
                     <span
                       aria-hidden
                       className="pointer-events-none absolute left-4 right-4 h-[2px] rounded animate-scan-line"
                       style={{
                         top: 8,
-                        background:
-                          "linear-gradient(90deg, transparent, rgba(217,119,87,0.6), transparent)",
+                        background: "linear-gradient(90deg, transparent, rgba(217,119,87,0.6), transparent)",
                       }}
                     />
                   )}
 
+                  {/* Expiring overlay */}
+                  {isExpired && !isConnected && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl animate-fade-up">
+                      <div className="text-xs font-semibold text-amber-500">Refreshing…</div>
+                    </div>
+                  )}
+
+                  {/* Connected overlay */}
                   {isConnected && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/85 backdrop-blur-sm animate-fade-up">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/90 backdrop-blur-sm animate-fade-up">
                       <CheckCircle2 className="h-10 w-10 text-success" />
-                      <div className="mt-2 text-sm font-semibold">Device connected</div>
+                      <div className="mt-2 text-sm font-semibold text-foreground">Device connected</div>
                       {scannedName && (
                         <div className="mt-3 flex flex-col items-center gap-1">
                           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary">
@@ -286,7 +205,7 @@ function LoginPage() {
                   )}
                 </div>
 
-                {/* Refresh countdown */}
+                {/* Countdown */}
                 {!isConnected && (
                   <p className="mt-2 text-center text-[11px] text-muted-foreground">
                     QR refreshes in{" "}
@@ -297,8 +216,24 @@ function LoginPage() {
                 )}
 
                 <p className="mt-3 text-center text-xs text-muted-foreground">
-                  Scan with the Elevate mobile app to sign in.
+                  Scan with your Elevate mobile app to sign in instantly.
                 </p>
+
+                {/* Instructions */}
+                <div className="mt-4 w-full rounded-lg border border-border bg-surface-1 p-3 text-xs text-muted-foreground space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
+                    Open the Elevate mobile app
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
+                    Tap the QR scanner icon
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
+                    Point your camera at this QR — instant login
+                  </div>
+                </div>
               </div>
             ) : (
               <form
