@@ -81,8 +81,9 @@ export async function pairUser(
   sessionId: string,
   email: string,
   displayName: string,
+  jobSeekerID?: string,
 ): Promise<void> {
-  await fbPairQR(sessionId, email, displayName);
+  await fbPairQR(sessionId, email, displayName, jobSeekerID);
 }
 
 export async function expireSession(sessionId: string): Promise<void> {

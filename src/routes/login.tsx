@@ -8,6 +8,7 @@ import { useQrLogin } from "@/hooks/useQrLogin";
 import { QRCodeSVG } from "qrcode.react";
 
 import { signIn, pairUser } from "@/data/repositories/authRepository";
+import { getUserProfile } from "@/firebase/users";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { qr_session?: string } => ({
@@ -34,25 +35,33 @@ function LoginPage() {
   const nav = useNavigate();
 
   // ─── QR hook ──────────────────────────────────────────────────────────────
-  const { qrValue, isConnected, scannedName, scannedEmail, secondsUntilRefresh } = useQrLogin();
+  const { qrValue, isConnected, scannedName, scannedEmail, scannedUid, secondsUntilRefresh } = useQrLogin();
 
   // Navigate after QR approval on desktop with a short delay to show candidate info
   useEffect(() => {
     if (isConnected && scannedName && scannedEmail) {
       const t = setTimeout(() => {
-        login({ name: scannedName, email: scannedEmail });
+        login({ uid: scannedUid, name: scannedName, email: scannedEmail });
         nav({ to: "/select" });
       }, 1800);
       return () => clearTimeout(t);
     }
-  }, [isConnected, scannedName, scannedEmail, login, nav]);
+  }, [isConnected, scannedName, scannedEmail, scannedUid, login, nav]);
 
   // ─── Mobile QR Pairing Handler ────────────────────────────────────────────
-  const handleApproveSession = async (userEmail: string, userName: string) => {
+  const handleApproveSession = async (userUid: string, userEmail: string, userName: string) => {
     if (!targetSession) return;
     setLoading(true);
     try {
-      await pairUser(targetSession, userEmail, userName);
+      // Always try to get the real name from jobSeekers collection
+      let realName = userName;
+      try {
+        const profile = await getUserProfile(userUid);
+        if (profile?.name) realName = profile.name;
+      } catch {
+        // fallback to auth displayName if Firestore lookup fails
+      }
+      await pairUser(targetSession, userEmail, realName, userUid);
       setPairedSuccess(true);
     } catch (err) {
       console.error("Failed to pair session:", err);
@@ -77,13 +86,18 @@ function LoginPage() {
       // Authenticate strictly with Firebase Auth (User must exist in Firebase)
       const user = await signIn(email, password);
       if (user) {
-        const candidateName = user.displayName || email.split("@")[0] || "Candidate";
         const candidateEmail = user.email || email;
 
         // If scanning on mobile via URL, pair the desktop session
         if (targetSession) {
-          await handleApproveSession(candidateEmail, candidateName);
+          await handleApproveSession(user.uid, candidateEmail, user.displayName || email.split("@")[0] || "Candidate");
         } else {
+          // Fetch real name from jobSeekers collection for local login too
+          let candidateName = user.displayName || email.split("@")[0] || "Candidate";
+          try {
+            const profile = await getUserProfile(user.uid);
+            if (profile?.name) candidateName = profile.name;
+          } catch { /* fallback */ }
           login({ name: candidateName, email: candidateEmail });
           nav({ to: "/select" });
         }
@@ -134,7 +148,7 @@ function LoginPage() {
                 <MagneticButton
                   className="w-full"
                   disabled={loading}
-                  onClick={() => handleApproveSession(currentUser.email, currentUser.name)}
+                  onClick={() => handleApproveSession(currentUser.uid, currentUser.email, currentUser.name)}
                 >
                   {loading ? "Approving..." : "Approve Sign-In"}
                 </MagneticButton>

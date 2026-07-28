@@ -13,6 +13,7 @@ export interface UseQrLoginReturn {
   isConnected: boolean;
   scannedName: string;
   scannedEmail: string;
+  scannedUid: string;
   secondsUntilRefresh: number;
 }
 
@@ -24,6 +25,7 @@ export function useQrLogin(): UseQrLoginReturn {
   const [isConnected, setIsConnected] = useState(false);
   const [scannedName, setScannedName] = useState("");
   const [scannedEmail, setScannedEmail] = useState("");
+  const [scannedUid, setScannedUid] = useState("");
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(5);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -58,6 +60,7 @@ export function useQrLogin(): UseQrLoginReturn {
           connectedRef.current = true;
           setScannedName(sessionData.displayName || sessionData.email.split("@")[0] || "Candidate");
           setScannedEmail(sessionData.email);
+          setScannedUid(sessionData.jobSeekerID || "");
           setIsConnected(true);
 
           // Stop rotation & countdown
@@ -103,5 +106,5 @@ export function useQrLogin(): UseQrLoginReturn {
     };
   }, [startRotation]);
 
-  return { sessionId, qrValue, isConnected, scannedName, scannedEmail, secondsUntilRefresh };
+  return { sessionId, qrValue, isConnected, scannedName, scannedEmail, scannedUid, secondsUntilRefresh };
 }

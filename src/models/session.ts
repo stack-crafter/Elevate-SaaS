@@ -32,7 +32,7 @@ export interface SessionState {
   // Auth
   authed: boolean;
   authLoading: boolean;
-  user: { name: string; email: string } | null;
+  user: { uid: string; name: string; email: string } | null;
   apiKey: string | null;
 
   // Current test selection

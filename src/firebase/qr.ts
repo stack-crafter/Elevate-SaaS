@@ -5,6 +5,7 @@ export interface QRSession {
   status: "pending" | "scanned" | "paired" | "expired" | "completed";
   email?: string;
   displayName?: string;
+  jobSeekerID?: string;
   createdAt: unknown;
   updatedAt?: unknown;
 }
@@ -50,12 +51,14 @@ export async function pairUserToQRLoginSession(
   sessionId: string,
   email: string,
   displayName: string,
+  jobSeekerID?: string,
 ): Promise<void> {
   const sessionRef = doc(db, "qr_sessions", sessionId);
   await updateDoc(sessionRef, {
     status: "paired",
     email,
     displayName,
+    ...(jobSeekerID ? { jobSeekerID } : {}),
     updatedAt: serverTimestamp(),
   });
 }

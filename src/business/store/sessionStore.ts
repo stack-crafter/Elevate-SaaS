@@ -13,7 +13,7 @@ export interface SessionState {
   // Auth
   authed: boolean;
   authLoading: boolean;
-  user: { name: string; email: string } | null;
+  user: { uid: string; name: string; email: string } | null;
   apiKey: string | null;
 
   // Current test selection
@@ -42,7 +42,7 @@ export interface SessionState {
   vibeChats: Record<string, { history: ChatMessage[]; hintCount: number }>;
 
   // ─── Actions ────────────────────────────────────────────────────────────────
-  login: (user: { name: string; email: string }) => void;
+  login: (user: { uid?: string; name: string; email: string }) => void;
   logout: () => void;
   setApiKey: (key: string) => void;
 
@@ -105,7 +105,7 @@ export const useSession = create<SessionState>()(
 
       // ─── Auth ──────────────────────────────────────────────────────────────
       login: (user) => {
-        set({ authed: true, authLoading: false, user });
+        set({ authed: true, authLoading: false, user: { uid: user.uid ?? "", name: user.name, email: user.email } });
       },
       logout: () => {
         signOut().catch(() => {});
@@ -239,6 +239,7 @@ onAuthStateChanged(async (user) => {
       authed: true,
       authLoading: false,
       user: {
+        uid: user.uid,
         name: defaultName,
         email: user.email || "",
       },
@@ -249,6 +250,7 @@ onAuthStateChanged(async (user) => {
       if (profile && profile.name) {
         useSession.setState({
           user: {
+            uid: user.uid,
             name: profile.name,
             email: user.email || profile.email || "",
           },
