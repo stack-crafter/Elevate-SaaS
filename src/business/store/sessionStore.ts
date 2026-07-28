@@ -5,6 +5,7 @@ import type { Skill, TestType, BadgeTier, Statistics, HistoryEntry } from "@/mod
 import { tierFor, jobFor } from "@/utilities/scoring";
 import { signOut, onAuthStateChanged, getCurrentUser } from "@/data/repositories/authRepository";
 import { saveTestResult } from "@/data/repositories/testsRepository";
+import { getUserProfile } from "@/firebase/users";
 
 // ─── Session State Interface ──────────────────────────────────────────────────
 
@@ -231,16 +232,31 @@ export const useSession = create<SessionState>()(
 );
 
 // Subscribe to Firebase Auth state updates
-onAuthStateChanged((user) => {
+onAuthStateChanged(async (user) => {
   if (user) {
+    const defaultName = user.displayName || user.email?.split("@")[0] || "Candidate";
     useSession.setState({
       authed: true,
       authLoading: false,
       user: {
-        name: user.displayName || user.email?.split("@")[0] || "Candidate",
+        name: defaultName,
         email: user.email || "",
       },
     });
+
+    try {
+      const profile = await getUserProfile(user.uid);
+      if (profile && profile.name) {
+        useSession.setState({
+          user: {
+            name: profile.name,
+            email: user.email || profile.email || "",
+          },
+        });
+      }
+    } catch (err) {
+      console.warn("Failed to retrieve user profile from Firestore:", err);
+    }
   } else {
     useSession.setState({
       authed: false,
