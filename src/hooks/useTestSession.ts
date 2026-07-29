@@ -61,25 +61,112 @@ export function useTestSession(): UseTestSessionReturn {
     }
   }, [skill, testType, history, setQuestions, setQuestionsLoading, setQuestionsError]);
 
+  const checkFallbackStagePromotion = useCallback(
+    async (stageIndex: number): Promise<boolean> => {
+      const { questions, answers: currentAnswers } = useSession.getState();
+      if (testType === "experience") {
+        return true; // No stages/promotion gate in experience mode
+      }
+
+      if (stageIndex === 9) {
+        // End of Beginner stage (questions 0 to 9)
+        setIsEvaluating(true);
+        try {
+          const result = await evaluateSubmission(
+            skill!,
+            testType!,
+            questions.slice(0, 10),
+            currentAnswers.slice(0, 10),
+          );
+          if (result.totalScore < 70) {
+            // Fail Beginner — terminate test early
+            finalize(result.totalScore, {
+              ...result,
+              overallFeedback: `Failed to promote from Beginner stage (Score: ${result.totalScore}/100, threshold: 70%). Assessment terminated early.`,
+            });
+            setIsEvaluating(false);
+            return false;
+          }
+          setIsEvaluating(false);
+          return true;
+        } catch (err) {
+          console.warn("Beginner stage evaluation failed, allowing proceed:", err);
+          setIsEvaluating(false);
+          return true;
+        }
+      }
+
+      if (stageIndex === 19) {
+        // End of Intermediate stage (questions 10 to 19)
+        setIsEvaluating(true);
+        try {
+          const combinedResult = await evaluateSubmission(
+            skill!,
+            testType!,
+            questions.slice(0, 20),
+            currentAnswers.slice(0, 20),
+          );
+          const intermediateResult = await evaluateSubmission(
+            skill!,
+            testType!,
+            questions.slice(10, 20),
+            currentAnswers.slice(10, 20),
+          );
+
+          if (intermediateResult.totalScore < 70) {
+            // Fail Intermediate — terminate test early. Combined score is the final result.
+            finalize(combinedResult.totalScore, {
+              ...combinedResult,
+              overallFeedback: `Failed to promote from Intermediate stage (Score: ${intermediateResult.totalScore}/100, threshold: 70%). Assessment terminated early.`,
+            });
+            setIsEvaluating(false);
+            return false;
+          }
+          setIsEvaluating(false);
+          return true;
+        } catch (err) {
+          console.warn("Intermediate stage evaluation failed, allowing proceed:", err);
+          setIsEvaluating(false);
+          return true;
+        }
+      }
+
+      return true;
+    },
+    [skill, testType, finalize],
+  );
+
   const submitQuestionAndNext = useCallback(
     async (currentI: number, answer: string | number | null): Promise<boolean> => {
+      // 1. Save answer in store
+      if (answer !== null && answer !== undefined) {
+        useSession.getState().setAnswer(currentI, answer);
+      }
+
       const { questions, answers: currentAnswers } = useSession.getState();
       const currentQuestion = questions[currentI];
       const sessionId = currentQuestion?._engineSessionId;
 
       if (!sessionId) {
-        // Fallback / OpenRouter flow does not fetch next question from engine
+        // Fallback / OpenRouter flow — check stage promotion at question 10 (idx 9) and 20 (idx 19)
+        if (currentI === 9 || currentI === 19) {
+          return await checkFallbackStagePromotion(currentI);
+        }
         return true;
       }
 
       setIsEvaluating(true);
       try {
-        const nextQuestion = await submitAndFetchNextQuestion(
+        const { nextQuestion, wasCorrect } = await submitAndFetchNextQuestion(
           sessionId,
           currentQuestion,
           answer,
           currentI + 1,
         );
+
+        if (currentQuestion) {
+          currentQuestion._isCorrect = wasCorrect;
+        }
 
         if (nextQuestion) {
           // Append next question to questions list in store
@@ -99,7 +186,7 @@ export function useTestSession(): UseTestSessionReturn {
         throw err;
       }
     },
-    [setQuestions, finalize],
+    [setQuestions, finalize, checkFallbackStagePromotion],
   );
 
   const submitTest = useCallback(async (): Promise<EvaluationResult | null> => {
@@ -110,7 +197,12 @@ export function useTestSession(): UseTestSessionReturn {
     setEvaluateError(null);
 
     try {
-      const result = await evaluateSubmission(skill, testType, questions, answers.slice(0, questions.length));
+      const result = await evaluateSubmission(
+        skill,
+        testType,
+        questions,
+        answers.slice(0, questions.length),
+      );
       finalize(result.totalScore, result);
       return result;
     } catch (err) {
@@ -119,11 +211,14 @@ export function useTestSession(): UseTestSessionReturn {
       // Fallback: compute MCQ score locally
       const { questions: qs, answers: ans } = useSession.getState();
       const mcqQs = qs.filter((q) => q.type === "mcq");
-      const correct = mcqQs.filter((q, i) => {
+      const correct = mcqQs.filter((q) => {
+        if (q._engineSessionId && q._isCorrect !== undefined) {
+          return q._isCorrect;
+        }
         const ansIndex = qs.indexOf(q);
         return ans[ansIndex] === q.correct;
       }).length;
-      const fallbackScore = mcqQs.length > 0 ? Math.round((correct / mcqQs.length) * 40) : 40; // 40% from MCQ
+      const fallbackScore = mcqQs.length > 0 ? Math.round((correct / mcqQs.length) * 100) : 40;
       finalize(fallbackScore, null);
       return null;
     } finally {

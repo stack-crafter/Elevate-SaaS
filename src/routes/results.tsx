@@ -93,7 +93,10 @@ function ResultsPage() {
 
   // MCQ breakdown from AI questions
   const mcqQuestions = questions.filter((q) => q.type === "mcq");
-  const mcqCorrect = mcqQuestions.filter((q, qi) => {
+  const mcqCorrect = mcqQuestions.filter((q) => {
+    if (q._engineSessionId && q._isCorrect !== undefined) {
+      return q._isCorrect;
+    }
     const globalIdx = questions.indexOf(q);
     return answers[globalIdx] === q.correct;
   }).length;

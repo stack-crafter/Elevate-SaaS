@@ -19,6 +19,7 @@ export interface AIQuestion {
   _modelAnswer?: string;
   _engineOverallNumber?: number;
   _engineOverallTotal?: number;
+  _isCorrect?: boolean;
 }
 
 export interface QuestionScore {

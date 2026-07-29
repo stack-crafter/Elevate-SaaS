@@ -119,21 +119,27 @@ export async function generateQuestions(
       : "";
   const isVibe = testType === "vibe";
 
-  const systemPrompt = `You are an expert technical interviewer generating a unique ${lang} assessment in the style of "${type}". Generate exactly 10 questions: 2 MCQ, 4 short theory, 4 coding. Every question must be fresh and different from any previous attempt.
-${isVibe ? `\nNOTE: Since the test format is "Vibe Code", you MUST set the "type" field of the 4 coding questions to "vibe_coding" instead of "coding".` : ""}
+  const systemPrompt = `You are an expert technical interviewer generating a unique ${lang} assessment.
+Generate exactly 32 questions as a single JSON array of objects.
 
-Return ONLY valid JSON (no markdown fences) matching this exact structure:
+Structure rules:
+- If "${testType}" is "pure" or "vibe":
+  - Beginner (questions 1-10): MCQ at indices 0, 3, 6, 9; Theory at 1, 4, 7; Coding at 2, 5, 8.
+  - Intermediate (questions 11-20): MCQ at indices 10, 13, 16, 19; Theory at 11, 14, 17; Coding at 12, 15, 18.
+  - Advanced (questions 21-32): MCQ at indices 20, 23, 26, 29; Theory at 21, 24, 27, 30; Coding at 22, 25, 28, 31.
+- If "${testType}" is "experience":
+  - 32 questions total, no stages: 11 MCQ (indices 0,3,6,9,12,15,18,21,24,27,30), 11 Theory (indices 1,4,7,10,13,16,19,22,25,28,31), 10 Coding (indices 2,5,8,11,14,17,20,23,26,29).
+
+Return ONLY valid JSON (no markdown fences) matching this structure:
 [
   { "id": "q1", "type": "mcq", "prompt": "Question text", "options": ["A","B","C","D"], "correct": 0 },
-  { "id": "q2", "type": "mcq", "prompt": "Question text", "options": ["A","B","C","D"], "correct": 2 },
-  { "id": "q3", "type": "theory", "prompt": "Short theory question" },
-  { "id": "q7", "type": "coding", "prompt": "Write a function that...", "language": "${lang.toLowerCase()}", "starterCode": "// starter code here" }
+  ...
 ]
 
-Guidelines:
-- MCQ: 4 options, one clearly correct. Test real conceptual depth.
-- Theory: open-ended, 2-4 sentences expected. Test communication of concepts.
-- Coding: realistic tasks relevant to ${lang}. Include starter code scaffolding. ${isVibe ? 'For this vibe assessment, set their type to "vibe_coding".' : ""}
+Rules:
+${isVibe ? `- Set the "type" field of all coding questions to "vibe_coding" instead of "coding".` : ""}
+- MCQ must have exactly 4 options.
+- Ensure high-quality, practical coding questions and clear theory/MCQs.
 - All questions must match test style: ${type}
 - Questions must be uniquely varied — no repeated topics.${avoidBlock}`;
 
@@ -144,20 +150,20 @@ Guidelines:
         { role: "system", content: systemPrompt },
         {
           role: "user",
-          content: `Generate a ${lang} ${testType} assessment. Return only the JSON array.`,
+          content: `Generate a ${lang} ${testType} assessment. Return only the JSON array of exactly 32 questions.`,
         },
       ],
-      temperature: 0.9,
-      max_tokens: 3000,
+      temperature: 0.8,
+      max_tokens: 8000,
     },
     apiKey,
   );
 
   const parsed = safeParseJSON<AIQuestion[]>(raw);
-  if (!parsed || !Array.isArray(parsed) || parsed.length < 10) {
-    throw new Error("AI returned malformed questions. Please try again.");
+  if (!parsed || !Array.isArray(parsed) || parsed.length < 32) {
+    throw new Error(`AI returned only ${parsed?.length || 0} questions. Expected at least 32.`);
   }
-  return parsed.slice(0, 10);
+  return parsed.slice(0, 32);
 }
 
 // ─── Progressive Submission and Next Question Fetching ───────────────────────
@@ -167,7 +173,7 @@ export async function submitAndFetchNextQuestion(
   currentQuestion: AIQuestion,
   answer: string | number | null,
   nextIndex: number,
-): Promise<AIQuestion | null> {
+): Promise<{ nextQuestion: AIQuestion | null; wasCorrect: boolean }> {
   let selectedOption: string | null = null;
   let candidateAnswer: string | null = null;
   let sourceCode: string | null = null;
@@ -189,19 +195,20 @@ export async function submitAndFetchNextQuestion(
   }
 
   // 1. Submit current answer to the engine
-  await submitEngineAnswer(sessionId, {
+  const submitRes = await submitEngineAnswer(sessionId, {
     selectedOption,
     candidateAnswer,
     sourceCode,
     language,
   });
+  const wasCorrect = submitRes?.was_correct ?? false;
 
   // 2. Fetch the next question
   const nextEq = await getNextEngineQuestion(sessionId);
-  if (!nextEq) return null;
+  if (!nextEq) return { nextQuestion: null, wasCorrect };
 
   // 3. Map to AIQuestion format
-  return engineQuestionToAIQuestion(nextEq, nextIndex);
+  return { nextQuestion: engineQuestionToAIQuestion(nextEq, nextIndex), wasCorrect };
 }
 
 // ─── Final Result Formulation ────────────────────────────────────────────────

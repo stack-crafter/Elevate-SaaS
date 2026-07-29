@@ -189,7 +189,8 @@ function TestPage() {
 
   const [i, setI] = useState(0);
   const [saved, setSaved] = useState(false);
-  const [seconds, setSeconds] = useState(12 * 60);
+  const [seconds, setSeconds] = useState(60 * 60); // Default to 60 mins comfortably, will be adjusted dynamically
+  const [timerInitialized, setTimerInitialized] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   const [aiPanelOpen, setAiPanelOpen] = useState(true);
   const [timeExpired, setTimeExpired] = useState(false);
@@ -254,13 +255,44 @@ function TestPage() {
     },
   });
 
+  // Dynamic timer calculation based on question types and assessment mode
+  useEffect(() => {
+    if (questions.length > 0 && !timerInitialized) {
+      const firstQ = questions[0];
+      const isEngine = !!firstQ?._engineSessionId;
+      const totalQs = isEngine ? (firstQ?._engineOverallTotal || 32) : questions.length;
+      
+      let computedSeconds = 0;
+      if (isEngine) {
+        // Budget comfortably for 32 questions: 12 MCQ (45s), 10 Theory (90s), 10 Coding (240s)
+        if (testType === "experience") {
+          computedSeconds = (11 * 45) + (11 * 90) + (10 * 240); // 3885 seconds
+        } else {
+          computedSeconds = (12 * 45) + (10 * 90) + (10 * 240); // 3840 seconds
+        }
+      } else {
+        // Fallback OpenRouter flow: Budget dynamically based on actual questions
+        questions.forEach((q) => {
+          if (q.type === "mcq") computedSeconds += 45;
+          else if (q.type === "theory") computedSeconds += 90;
+          else computedSeconds += 240;
+        });
+      }
+
+      // Buffer minimums: 15 mins for fallback, 65 mins for full 32 questions
+      const finalSec = Math.max(computedSeconds, totalQs === 32 ? 65 * 60 : 15 * 60);
+      setSeconds(finalSec);
+      setTimerInitialized(true);
+    }
+  }, [questions, testType, timerInitialized]);
+
   // Timer countdown — only runs once the camera gate has passed and
   // questions are loaded, so waiting on permission doesn't burn exam time
   useEffect(() => {
-    if (!camGranted || questions.length === 0) return;
+    if (!camGranted || questions.length === 0 || !timerInitialized) return;
     const t = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(t);
-  }, [camGranted, questions.length]);
+  }, [camGranted, questions.length, timerInitialized]);
 
   // Auto-submit when time runs out
   useEffect(() => {
@@ -403,41 +435,37 @@ function TestPage() {
   const next = async () => {
     setTransitioning(true);
     const currentQuestion = questions[i];
-    const isEngine = !!currentQuestion?._engineSessionId;
 
-    if (isEngine) {
-      try {
-        const hasNext = await submitQuestionAndNext(i, currentAnswer);
-        if (hasNext) {
-          setI(i + 1);
-          setTransitioning(false);
-        } else {
-          // Engine test completed or ended early due to failure
-          testEndedRef.current = true;
-          stopProctoringAndCamera();
-          nav({ to: "/results" });
-        }
-      } catch (err) {
-        console.warn("Failed to retrieve next question from engine, falling back to local navigation:", err);
-        if (i < questions.length - 1) {
-          setI(i + 1);
-          setTransitioning(false);
-        }
-      }
-    } else {
-      setTimeout(async () => {
+    try {
+      const hasNext = await submitQuestionAndNext(i, currentAnswer);
+      if (hasNext) {
         if (i < questions.length - 1) {
           setI(i + 1);
           setTransitioning(false);
         } else {
-          // Stop anti-cheat + AI proctoring detection before submitting
+          // Completed all 32 questions (fallback OpenRouter mode)
           testEndedRef.current = true;
           stopProctoringAndCamera();
-          // Submit to AI evaluator
           await submitTest();
           nav({ to: "/results" });
         }
-      }, 260);
+      } else {
+        // Test ended early (either engine completed/failed, or fallback stage failed)
+        testEndedRef.current = true;
+        stopProctoringAndCamera();
+        nav({ to: "/results" });
+      }
+    } catch (err) {
+      console.warn("Failed to proceed to next question, falling back to local navigation:", err);
+      if (i < questions.length - 1) {
+        setI(i + 1);
+        setTransitioning(false);
+      } else {
+        testEndedRef.current = true;
+        stopProctoringAndCamera();
+        await submitTest();
+        nav({ to: "/results" });
+      }
     }
   };
 
@@ -557,8 +585,8 @@ function TestPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* AI Hint toggle — vibe_coding only */}
-            {questions[i]?.type === "vibe_coding" && (
+            {/* AI Hint toggle — vibe coding / vibe test code questions */}
+            {(questions[i]?.type === "vibe_coding" || (testType === "vibe" && (questions[i]?.type === "coding" || (questions[i] as any)._engineQuestionType === "coding"))) && (
               <button
                 onClick={() => setAiPanelOpen((o) => !o)}
                 className="flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-primary hover:border-primary/30 transition"
@@ -689,8 +717,8 @@ function TestPage() {
                   />
                 </div>
 
-                {/* AI Mentor Panel — vibe_coding only */}
-                {q.type === "vibe_coding" && (
+                {/* AI Mentor Panel — vibe coding / vibe test code questions */}
+                {(q.type === "vibe_coding" || (testType === "vibe" && (q.type === "coding" || (q as any)._engineQuestionType === "coding"))) && (
                   <VibeAssistantPanel
                     question={q}
                     skill={skill}
