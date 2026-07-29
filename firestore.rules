@@ -1,24 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 1. QR Sessions: Allow unauthenticated read & write for cross-device QR code pairing
-    match /qr_sessions/{sessionId} {
-      allow read, write: if true;
-    }
-
-    // 2. Candidate Profiles: Allow full read & write for web and mobile profile management
-    match /jobSeekers/{userId} {
-      allow read, write: if true;
-    }
-
-    // 3. User Submissions & Tests: Allow full read & write for all mobile & web CRUD operations
-    match /users/{document=**} {
-      allow read, write: if true;
-    }
-
-    // 4. Wildcard Catch-All: Ensures no existing or future mobile/web CRUD operations are blocked
+    // Fully generic open rules: allows anyone on web & mobile to read and write all collections/documents
     match /{document=**} {
-      allow read, write: if request.auth != null || true;
+      allow read, write: if true;
     }
   }
 }
