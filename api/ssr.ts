@@ -11,6 +11,7 @@ let _handler: FetchHandler | undefined;
 
 async function getHandler(): Promise<FetchHandler> {
   if (!_handler) {
+    // @ts-expect-error - server bundle is built dynamically by vite build
     const mod = await import("../dist/server/server.js");
     _handler = (mod.default ?? mod) as FetchHandler;
   }
