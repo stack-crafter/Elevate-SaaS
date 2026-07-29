@@ -37,6 +37,15 @@ function QrPairPage() {
   const [pageState, setPageState] = useState<PageState>("validating");
   const [errorMessage, setErrorMessage] = useState("");
   const [showManualForm, setShowManualForm] = useState(false);
+  const [authTimeout, setAuthTimeout] = useState(false);
+
+  // Timeout for auth loading so we don't freeze if Firebase Auth is blocked/slow
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setAuthTimeout(true);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Email/password form state (only shown if not already logged in)
   const [formEmail, setFormEmail] = useState("");
@@ -67,8 +76,6 @@ function QrPairPage() {
 
   // ─── On mount: validate session, then auto-pair if user is already logged in ─
   useEffect(() => {
-    if (authLoading) return;
-
     if (!sessionId) {
       setPageState("expired");
       return;
@@ -78,7 +85,7 @@ function QrPairPage() {
 
     (async () => {
       try {
-        // Validate session in Firestore
+        // Validate session in Firestore immediately (don't wait for authLoading)
         const session = await validateSession(sessionId);
         if (cancelled) return;
 
@@ -101,6 +108,11 @@ function QrPairPage() {
           return;
         }
 
+        // If auth is still loading and we haven't timed out, wait
+        if (authLoading && !authTimeout) {
+          return;
+        }
+
         // Not logged in → show instructions / app requirement screen
         setPageState("login_needed");
       } catch (err) {
@@ -114,7 +126,7 @@ function QrPairPage() {
     return () => {
       cancelled = true;
     };
-  }, [sessionId, currentUser, authLoading]);
+  }, [sessionId, currentUser, authLoading, authTimeout]);
 
   // ─── Manual login + immediate pair (no approve button) ────────────────────
   const handleLoginAndPair = async (e: React.FormEvent) => {
