@@ -1,9 +1,14 @@
-﻿import type { Skill, TestType } from "@/models/session";
+import type { Skill, TestType } from "@/models/session";
 import type { AIQuestion, EvaluationResult } from "@/models/assessment";
 import { OPENROUTER_MODEL } from "@/lib/config";
 import { SKILL_LABELS, TYPE_LABELS } from "@/utilities/constants";
 import { safeParseJSON } from "@/utilities/parsing";
 import { getApiKey, openRouterFetch } from "@/data/api/openrouterClient";
+import {
+  evaluateMCQWithEngine,
+  evaluateTheoryWithEngine,
+  evaluateCodingWithEngine,
+} from "@/data/api/elevateEngineClient";
 
 // ─── Assessment Repository ────────────────────────────────────────────────────
 
@@ -70,6 +75,94 @@ export async function evaluateSubmission(
   questions: AIQuestion[],
   answers: (string | number | null)[],
 ): Promise<EvaluationResult> {
+  // ─── Primary: Attempt evaluation via Elevate Engine (Render Backend) ──────────
+  try {
+    const questionScores: Array<{
+      questionId: string;
+      score: number;
+      feedback: string;
+      isCorrect: boolean;
+    }> = [];
+    let engineSuccess = true;
+
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      const ans = answers[i];
+
+      if (q.type === "mcq") {
+        const chosen = typeof ans === "number" ? (q.options?.[ans] ?? "") : "";
+        const correct = q.options?.[q.correct ?? 0] ?? "";
+        const evalRes = await evaluateMCQWithEngine(chosen, correct);
+        if (evalRes) {
+          questionScores.push({
+            questionId: q.id || `q${i + 1}`,
+            score: evalRes.was_correct ? 10 : 0,
+            feedback: evalRes.was_correct ? "Correct answer." : `Incorrect. Correct option was: ${correct}`,
+            isCorrect: evalRes.was_correct,
+          });
+        } else {
+          engineSuccess = false;
+          break;
+        }
+      } else if (q.type === "theory") {
+        const evalRes = await evaluateTheoryWithEngine(String(ans || ""), q.prompt);
+        if (evalRes) {
+          questionScores.push({
+            questionId: q.id || `q${i + 1}`,
+            score: Math.round(evalRes.score * 10),
+            feedback: evalRes.feedback || (evalRes.was_correct ? "Good answer." : "Needs improvement."),
+            isCorrect: evalRes.was_correct,
+          });
+        } else {
+          engineSuccess = false;
+          break;
+        }
+      } else {
+        // coding or vibe_coding
+        const evalRes = await evaluateCodingWithEngine(
+          String(ans || ""),
+          q.language || skill,
+          [{ input: "", expected_output: "" }],
+        );
+        if (evalRes) {
+          questionScores.push({
+            questionId: q.id || `q${i + 1}`,
+            score: Math.round(evalRes.score * 10),
+            feedback: evalRes.was_correct ? "Code logic meets test criteria." : "Code did not pass all checks.",
+            isCorrect: evalRes.was_correct,
+          });
+        } else {
+          engineSuccess = false;
+          break;
+        }
+      }
+    }
+
+    if (engineSuccess && questionScores.length === questions.length) {
+      const totalSum = questionScores.reduce((acc, curr) => acc + curr.score, 0);
+      const totalScore = Math.round((totalSum / (questions.length * 10)) * 100);
+      const correctCount = questionScores.filter((qs) => qs.isCorrect).length;
+
+      return {
+        totalScore,
+        questionScores,
+        strengths: [
+          `Demonstrated accurate understanding on ${correctCount} of ${questions.length} questions.`,
+        ],
+        weaknesses: [
+          `Topics requiring review: ${questions
+            .filter((_, idx) => !questionScores[idx]?.isCorrect)
+            .map((q) => q.prompt.slice(0, 30) + "...")
+            .join(", ") || "None"}`,
+        ],
+        overallFeedback: `Assessment completed via Elevate Engine. Candidate scored ${totalScore}%.`,
+      };
+    }
+  } catch (err) {
+    console.warn("Elevate Engine evaluation fallback to OpenRouter:", err);
+  }
+
+  // ─── Fallback: OpenRouter / OpenAI Evaluation ──────────────────────────────────
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("No API key.");
 
