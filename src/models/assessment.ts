@@ -1,4 +1,4 @@
-﻿// ─── Assessment Models ────────────────────────────────────────────────────────
+// ─── Assessment Models ────────────────────────────────────────────────────────
 
 export interface AIQuestion {
   id: string;
@@ -12,6 +12,11 @@ export interface AIQuestion {
   language?: string;
   /** Coding only */
   starterCode?: string;
+  /** Elevate Engine metadata — used for engine-aware evaluation, not shown in UI */
+  _engineSessionId?: string;
+  _engineQuestionType?: string;
+  _engineOptions?: Record<string, string>;
+  _modelAnswer?: string;
 }
 
 export interface QuestionScore {
