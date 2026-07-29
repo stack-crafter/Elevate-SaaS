@@ -17,6 +17,8 @@ export interface AIQuestion {
   _engineQuestionType?: string;
   _engineOptions?: Record<string, string>;
   _modelAnswer?: string;
+  _engineOverallNumber?: number;
+  _engineOverallTotal?: number;
 }
 
 export interface QuestionScore {

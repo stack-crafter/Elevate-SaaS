@@ -1,6 +1,11 @@
 import { useState, useCallback } from "react";
 import type { EvaluationResult } from "@/models/assessment";
-import { generateQuestions, evaluateSubmission } from "@/data/repositories/assessmentRepository";
+import {
+  generateQuestions,
+  evaluateSubmission,
+  submitAndFetchNextQuestion,
+  getFinalEngineResult,
+} from "@/data/repositories/assessmentRepository";
 import { useSession } from "@/business/store/sessionStore";
 
 export interface UseTestSessionReturn {
@@ -10,6 +15,7 @@ export interface UseTestSessionReturn {
   evaluateError: string | null;
   generateTest: () => Promise<void>;
   submitTest: () => Promise<EvaluationResult | null>;
+  submitQuestionAndNext: (currentI: number, answer: string | number | null) => Promise<boolean>;
 }
 
 export function useTestSession(): UseTestSessionReturn {
@@ -40,7 +46,7 @@ export function useTestSession(): UseTestSessionReturn {
       // Collect previous question prompts to avoid repetition
       const previousPrompts = history
         .filter((h) => h.skill === skill && h.testType === testType)
-        .flatMap((h) => []) // We don't store question text in history, just for uniqueness signal
+        .flatMap(() => []) // We don't store question text in history, just for uniqueness signal
         .slice(0, 5);
 
       const qs = await generateQuestions(skill, testType, previousPrompts);
@@ -55,6 +61,47 @@ export function useTestSession(): UseTestSessionReturn {
     }
   }, [skill, testType, history, setQuestions, setQuestionsLoading, setQuestionsError]);
 
+  const submitQuestionAndNext = useCallback(
+    async (currentI: number, answer: string | number | null): Promise<boolean> => {
+      const { questions, answers: currentAnswers } = useSession.getState();
+      const currentQuestion = questions[currentI];
+      const sessionId = currentQuestion?._engineSessionId;
+
+      if (!sessionId) {
+        // Fallback / OpenRouter flow does not fetch next question from engine
+        return true;
+      }
+
+      setIsEvaluating(true);
+      try {
+        const nextQuestion = await submitAndFetchNextQuestion(
+          sessionId,
+          currentQuestion,
+          answer,
+          currentI + 1,
+        );
+
+        if (nextQuestion) {
+          // Append next question to questions list in store
+          setQuestions([...questions, nextQuestion]);
+          setIsEvaluating(false);
+          return true;
+        } else {
+          // No more questions from engine: retrieve final session score & feedback
+          const result = await getFinalEngineResult(sessionId, questions, currentAnswers);
+          finalize(result.totalScore, result);
+          setIsEvaluating(false);
+          return false;
+        }
+      } catch (err) {
+        console.warn("Elevate Engine submitQuestionAndNext failed:", err);
+        setIsEvaluating(false);
+        throw err;
+      }
+    },
+    [setQuestions, finalize],
+  );
+
   const submitTest = useCallback(async (): Promise<EvaluationResult | null> => {
     const { questions } = useSession.getState();
     if (!skill || !testType || questions.length === 0) return null;
@@ -63,7 +110,7 @@ export function useTestSession(): UseTestSessionReturn {
     setEvaluateError(null);
 
     try {
-      const result = await evaluateSubmission(skill, testType, questions, answers);
+      const result = await evaluateSubmission(skill, testType, questions, answers.slice(0, questions.length));
       finalize(result.totalScore, result);
       return result;
     } catch (err) {
@@ -84,5 +131,13 @@ export function useTestSession(): UseTestSessionReturn {
     }
   }, [skill, testType, answers, finalize]);
 
-  return { isGenerating, isEvaluating, generateError, evaluateError, generateTest, submitTest };
+  return {
+    isGenerating,
+    isEvaluating,
+    generateError,
+    evaluateError,
+    generateTest,
+    submitTest,
+    submitQuestionAndNext,
+  };
 }

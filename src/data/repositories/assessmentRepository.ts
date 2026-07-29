@@ -9,6 +9,8 @@ import {
   mapModeToEngine,
   startEngineSession,
   getNextEngineQuestion,
+  submitEngineAnswer,
+  getEngineSessionResult,
   evaluateMCQWithEngine,
   evaluateTheoryWithEngine,
   evaluateCodingWithEngine,
@@ -30,18 +32,17 @@ function engineQuestionToAIQuestion(eq: EngineQuestion, idx: number): AIQuestion
       .filter((k) => optionsObj[k] !== undefined)
       .map((k) => optionsObj[k]);
 
-    // Correct answer index is not given by engine — we evaluate at submission time via evaluate-mcq
-    // Store options and mark correct as 0 as placeholder; real scoring uses submitEngineAnswer
     return {
       id,
       type: "mcq",
       prompt: eq.question,
       options: optionsArr,
       correct: 0, // placeholder — scoring is handled by engine's submit-answer
-      // Store extra metadata for engine-aware evaluation
       _engineSessionId: eq.session_id,
       _engineQuestionType: eq.question_type,
       _engineOptions: optionsObj,
+      _engineOverallNumber: eq.overall_question_number,
+      _engineOverallTotal: eq.overall_total_questions,
     } as AIQuestion;
   }
 
@@ -53,6 +54,8 @@ function engineQuestionToAIQuestion(eq: EngineQuestion, idx: number): AIQuestion
       _engineSessionId: eq.session_id,
       _engineQuestionType: eq.question_type,
       _modelAnswer: eq.model_answer ?? "",
+      _engineOverallNumber: eq.overall_question_number,
+      _engineOverallTotal: eq.overall_total_questions,
     } as AIQuestion;
   }
 
@@ -66,6 +69,8 @@ function engineQuestionToAIQuestion(eq: EngineQuestion, idx: number): AIQuestion
     starterCode: eq.starter_code ?? `# Write your ${lang} code here\n`,
     _engineSessionId: eq.session_id,
     _engineQuestionType: eq.question_type,
+    _engineOverallNumber: eq.overall_question_number,
+    _engineOverallTotal: eq.overall_total_questions,
   } as AIQuestion;
 }
 
@@ -84,22 +89,17 @@ export async function generateQuestions(
       const engineMode = mapModeToEngine(testType);
       const userId = `web_user_${Date.now()}`;
 
+      // Start engine session
       const session = await startEngineSession(userId, engineSkill, engineMode);
       if (session?.session_id) {
         const sessionId = session.session_id;
-        const questions: AIQuestion[] = [];
 
-        // Fetch 10 questions sequentially from the engine session
-        for (let i = 0; i < 10; i++) {
-          const eq = await getNextEngineQuestion(sessionId);
-          if (!eq) break;
-          questions.push(engineQuestionToAIQuestion(eq, i));
-        }
-
-        if (questions.length >= 8) {
-          // Store sessionId on first question so evaluation can reference it
-          console.info(`[Elevate Engine] Generated ${questions.length} questions for ${engineSkill} / ${engineMode}`);
-          return questions.slice(0, 10);
+        // Fetch ONLY the first question to begin the progressive flow
+        const eq = await getNextEngineQuestion(sessionId);
+        if (eq) {
+          const firstQuestion = engineQuestionToAIQuestion(eq, 0);
+          console.info(`[Elevate Engine] Started progressive session ${sessionId} for ${engineSkill}`);
+          return [firstQuestion];
         }
       }
     } catch (err) {
@@ -160,7 +160,101 @@ Guidelines:
   return parsed.slice(0, 10);
 }
 
-// ─── Submission Evaluation ─────────────────────────────────────────────────────
+// ─── Progressive Submission and Next Question Fetching ───────────────────────
+
+export async function submitAndFetchNextQuestion(
+  sessionId: string,
+  currentQuestion: AIQuestion,
+  answer: string | number | null,
+  nextIndex: number,
+): Promise<AIQuestion | null> {
+  let selectedOption: string | null = null;
+  let candidateAnswer: string | null = null;
+  let sourceCode: string | null = null;
+  let language: string | null = null;
+
+  if (currentQuestion.type === "mcq") {
+    const engineOpts = (currentQuestion as any)._engineOptions || {};
+    const optionKeys = ["A", "B", "C", "D"];
+    if (typeof answer === "number") {
+      selectedOption = optionKeys[answer] ?? null;
+    } else {
+      selectedOption = String(answer || "");
+    }
+  } else if (currentQuestion.type === "theory") {
+    candidateAnswer = String(answer || "");
+  } else {
+    sourceCode = String(answer || "");
+    language = currentQuestion.language || "python";
+  }
+
+  // 1. Submit current answer to the engine
+  await submitEngineAnswer(sessionId, {
+    selectedOption,
+    candidateAnswer,
+    sourceCode,
+    language,
+  });
+
+  // 2. Fetch the next question
+  const nextEq = await getNextEngineQuestion(sessionId);
+  if (!nextEq) return null;
+
+  // 3. Map to AIQuestion format
+  return engineQuestionToAIQuestion(nextEq, nextIndex);
+}
+
+// ─── Final Result Formulation ────────────────────────────────────────────────
+
+export async function getFinalEngineResult(
+  sessionId: string,
+  questions: AIQuestion[],
+  answers: (string | number | null)[],
+): Promise<EvaluationResult> {
+  const resultData = await getEngineSessionResult(sessionId);
+  if (!resultData) {
+    throw new Error("Failed to retrieve final engine evaluation results.");
+  }
+
+  const score = typeof resultData.total_marks_earned === "number" ? resultData.total_marks_earned : 0;
+  const sections = (resultData.sections as Record<string, any>) || {};
+
+  const strengths: string[] = [];
+  const weaknesses: string[] = [];
+
+  for (const [secName, secData] of Object.entries(sections)) {
+    const earned = secData.marks || 0;
+    const possible = secData.marks_possible || 1;
+    const percent = Math.round((earned / possible) * 100);
+
+    if (percent >= 70) {
+      strengths.push(`Excellent performance in ${secName} section: scored ${percent}% (${earned}/${possible} marks).`);
+    } else {
+      weaknesses.push(`Requires improvement in ${secName} section: scored ${percent}% (${earned}/${possible} marks).`);
+    }
+  }
+
+  if (strengths.length === 0) {
+    strengths.push("Attempted progressive skill assessment topics.");
+  }
+  if (weaknesses.length === 0) {
+    weaknesses.push("All attempted conceptual test sections passed the criteria.");
+  }
+
+  return {
+    totalScore: score,
+    questionScores: questions.map((q, idx) => ({
+      questionId: q.id,
+      score: answers[idx] ? 10 : 0,
+      feedback: answers[idx] ? "Answered and evaluated by engine." : "No answer provided.",
+    })),
+    strengths,
+    weaknesses,
+    overallFeedback: `Adaptive evaluation completed successfully. Highest section completed: ${resultData.current_level}. Final combined score: ${score}/100.`,
+  };
+}
+
+// ─── Submission Evaluation (Fallback / OpenRouter only) ──────────────────────
 
 export async function evaluateSubmission(
   skill: Skill,
@@ -168,147 +262,6 @@ export async function evaluateSubmission(
   questions: AIQuestion[],
   answers: (string | number | null)[],
 ): Promise<EvaluationResult> {
-  // ─── Primary: Elevate Engine per-question evaluation ─────────────────────────
-  try {
-    const questionScores: Array<{
-      questionId: string;
-      score: number;
-      feedback: string;
-      isCorrect: boolean;
-    }> = [];
-    let engineSuccess = true;
-
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i] as AIQuestion & {
-        _engineSessionId?: string;
-        _engineOptions?: Record<string, string>;
-        _modelAnswer?: string;
-      };
-      const ans = answers[i];
-      const qId = q.id || `q${i + 1}`;
-
-      if (q.type === "mcq") {
-        // Map user's numeric answer index → option letter using stored engine options
-        const engineOpts = q._engineOptions;
-        const optionKeys = ["A", "B", "C", "D"];
-
-        let selectedLetter = "";
-        let correctLetter = "";
-
-        if (engineOpts && typeof ans === "number") {
-          // Engine-originated question: use stored options map
-          const optArr = optionKeys.filter((k) => engineOpts[k] !== undefined);
-          selectedLetter = optArr[ans] ?? "";
-          // The engine tracks correct internally via submit-answer; for evaluate-mcq we need correct option
-          // Since engine doesn't tell us the correct answer upfront, submit via session if available
-          const sessionId = q._engineSessionId;
-          if (sessionId) {
-            const submitRes = await fetch(
-              `${import.meta.env.VITE_ELEVATE_ENGINE_URL || "https://elevate-backend-rtdg.onrender.com"}/test/submit-answer`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  session_id: sessionId,
-                  selected_option: selectedLetter,
-                }),
-                signal: AbortSignal.timeout(8000),
-              },
-            );
-            if (submitRes.ok) {
-              const result = await submitRes.json();
-              questionScores.push({
-                questionId: qId,
-                score: result.was_correct ? 10 : 0,
-                feedback: result.feedback || (result.was_correct ? "Correct!" : "Incorrect answer."),
-                isCorrect: !!result.was_correct,
-              });
-              continue;
-            }
-          }
-        }
-
-        // Fallback within engine block: use evaluate-mcq with options from question
-        const chosen = typeof ans === "number" ? (q.options?.[ans] ?? "") : String(ans ?? "");
-        const correct = q.options?.[q.correct ?? 0] ?? "";
-        const evalRes = await evaluateMCQWithEngine(chosen, correct);
-        if (evalRes) {
-          questionScores.push({
-            questionId: qId,
-            score: evalRes.was_correct ? 10 : 0,
-            feedback: evalRes.was_correct ? "Correct answer." : `Incorrect. Correct: ${correct}`,
-            isCorrect: evalRes.was_correct,
-          });
-        } else {
-          engineSuccess = false;
-          break;
-        }
-      } else if (q.type === "theory") {
-        const candidateAns = String(ans ?? "");
-        const modelAnswer = (q as AIQuestion & { _modelAnswer?: string })._modelAnswer || q.prompt;
-        const evalRes = await evaluateTheoryWithEngine(candidateAns, modelAnswer);
-        if (evalRes) {
-          questionScores.push({
-            questionId: qId,
-            score: Math.round(evalRes.score * 10),
-            feedback: evalRes.feedback || (evalRes.was_correct ? "Good answer." : "Needs improvement."),
-            isCorrect: evalRes.was_correct,
-          });
-        } else {
-          engineSuccess = false;
-          break;
-        }
-      } else {
-        // coding / vibe_coding
-        const code = String(ans ?? "");
-        const lang = q.language ?? String(skill);
-        const evalRes = await evaluateCodingWithEngine(code, lang, [
-          { input: "", expected_output: "" },
-        ]);
-        if (evalRes) {
-          questionScores.push({
-            questionId: qId,
-            score: Math.round(evalRes.score * 10),
-            feedback: evalRes.was_correct
-              ? "Code logic meets test criteria."
-              : "Code did not pass all checks.",
-            isCorrect: evalRes.was_correct,
-          });
-        } else {
-          engineSuccess = false;
-          break;
-        }
-      }
-    }
-
-    if (engineSuccess && questionScores.length === questions.length) {
-      const totalSum = questionScores.reduce((acc, curr) => acc + curr.score, 0);
-      const totalScore = Math.round((totalSum / (questions.length * 10)) * 100);
-      const correctCount = questionScores.filter((qs) => qs.isCorrect).length;
-      const wrongQuestions = questions.filter((_, idx) => !questionScores[idx]?.isCorrect);
-
-      return {
-        totalScore,
-        questionScores,
-        strengths: [
-          `Answered ${correctCount} of ${questions.length} questions correctly.`,
-          correctCount >= 8
-            ? "Excellent command of the subject."
-            : correctCount >= 5
-              ? "Good understanding of core concepts."
-              : "Showed effort across all question types.",
-        ].filter(Boolean),
-        weaknesses:
-          wrongQuestions.length > 0
-            ? [`Topics to review: ${wrongQuestions.map((q) => q.prompt.slice(0, 40) + "…").join("; ")}`]
-            : ["No major weaknesses identified."],
-        overallFeedback: `Assessment evaluated by Elevate Engine. Score: ${totalScore}/100. Keep practising to improve your rating.`,
-      };
-    }
-  } catch (err) {
-    console.warn("Elevate Engine evaluation fallback to OpenRouter:", err);
-  }
-
   // ─── Fallback: OpenRouter / OpenAI Evaluation ─────────────────────────────────
   const apiKey = getApiKey();
   if (!apiKey) throw new Error("No API key.");

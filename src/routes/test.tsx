@@ -60,7 +60,7 @@ function TestPage() {
     }
   }, [authLoading, authed, skill, testType, nav]);
 
-  const { isGenerating, isEvaluating, generateError, generateTest, submitTest } = useTestSession();
+  const { isGenerating, isEvaluating, generateError, generateTest, submitTest, submitQuestionAndNext } = useTestSession();
 
   // ─── AI Proctoring: camera permission + monitoring ─────────────────────────
   // Declared before question generation because the exam is only allowed to
@@ -380,7 +380,9 @@ function TestPage() {
   }
 
   const q = questions[i];
-  const progress = ((i + 1) / questions.length) * 100;
+  const totalQuestionsDisplay = q?._engineOverallTotal ?? questions.length;
+  const currentQuestionNumber = q?._engineOverallNumber ?? (i + 1);
+  const progress = (currentQuestionNumber / totalQuestionsDisplay) * 100;
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
   const urgent = seconds < 60;
@@ -398,21 +400,45 @@ function TestPage() {
     setTimeout(() => setSaved(false), 1200);
   };
 
-  const next = () => {
+  const next = async () => {
     setTransitioning(true);
-    setTimeout(async () => {
-      if (i < questions.length - 1) {
-        setI(i + 1);
-        setTransitioning(false);
-      } else {
-        // Stop anti-cheat + AI proctoring detection before submitting
-        testEndedRef.current = true;
-        stopProctoringAndCamera();
-        // Submit to AI evaluator
-        await submitTest();
-        nav({ to: "/results" });
+    const currentQuestion = questions[i];
+    const isEngine = !!currentQuestion?._engineSessionId;
+
+    if (isEngine) {
+      try {
+        const hasNext = await submitQuestionAndNext(i, currentAnswer);
+        if (hasNext) {
+          setI(i + 1);
+          setTransitioning(false);
+        } else {
+          // Engine test completed or ended early due to failure
+          testEndedRef.current = true;
+          stopProctoringAndCamera();
+          nav({ to: "/results" });
+        }
+      } catch (err) {
+        console.warn("Failed to retrieve next question from engine, falling back to local navigation:", err);
+        if (i < questions.length - 1) {
+          setI(i + 1);
+          setTransitioning(false);
+        }
       }
-    }, 260);
+    } else {
+      setTimeout(async () => {
+        if (i < questions.length - 1) {
+          setI(i + 1);
+          setTransitioning(false);
+        } else {
+          // Stop anti-cheat + AI proctoring detection before submitting
+          testEndedRef.current = true;
+          stopProctoringAndCamera();
+          // Submit to AI evaluator
+          await submitTest();
+          nav({ to: "/results" });
+        }
+      }, 260);
+    }
   };
 
   // Can we proceed?
@@ -515,7 +541,7 @@ function TestPage() {
             <div className="flex-1">
               <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>
-                  Question {i + 1} of {questions.length}
+                  Question {currentQuestionNumber} of {totalQuestionsDisplay}
                 </span>
                 <span>{Math.round(progress)}%</span>
               </div>
@@ -560,7 +586,7 @@ function TestPage() {
             className={`transition-all duration-300 ${transitioning ? "opacity-0 -translate-x-2" : "opacity-100 translate-x-0 animate-fade-up"}`}
           >
             <div className="micro-label">
-              Question {i + 1} ·{" "}
+              Question {currentQuestionNumber} ·{" "}
               <span className="capitalize">
                 {q.type === "mcq"
                   ? "Multiple Choice"
@@ -687,12 +713,12 @@ function TestPage() {
                 {saved ? "Saved" : "Auto-saving as you go"}
               </span>
             </div>
-            <MagneticButton disabled={!canNext} onClick={next}>
-              {i === questions.length - 1
-                ? isEvaluating
-                  ? "Evaluating…"
-                  : "Finish"
-                : "Next question"}{" "}
+            <MagneticButton disabled={!canNext || isEvaluating} onClick={next}>
+              {isEvaluating
+                ? "Evaluating…"
+                : (i === questions.length - 1 && !q?._engineSessionId)
+                  ? "Finish"
+                  : "Next question"}{" "}
               <ArrowRight className="h-4 w-4" />
             </MagneticButton>
           </div>
