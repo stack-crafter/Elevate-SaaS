@@ -17,8 +17,8 @@ export interface UseQrLoginReturn {
   isExpired: boolean;
 }
 
-const QR_INTERVAL_MS = 30_000; // 30 seconds TTL
-const COUNTDOWN_START = 30;
+const QR_INTERVAL_MS = 90_000; // 90 seconds TTL — matches Firestore expiresAt
+const COUNTDOWN_START = 90;
 
 export function useQrLogin(): UseQrLoginReturn {
   const [sessionId, setSessionId] = useState(() => generateQRPayload());

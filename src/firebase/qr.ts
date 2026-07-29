@@ -24,12 +24,12 @@ export interface QRSession {
   updatedAt?: unknown;
 }
 
-/** Create a new QR session with a 30-second TTL */
+/** Create a new QR session with a 90-second TTL */
 export async function createQRLoginSession(sessionId: string): Promise<void> {
   const sessionRef = doc(db, "qr_sessions", sessionId);
   await setDoc(sessionRef, {
     status: "pending",
-    expiresAt: Date.now() + 30_000, // 30 seconds so scanner has time
+    expiresAt: Date.now() + 90_000, // 90 seconds - enough time to open the app and scan
     createdAt: serverTimestamp(),
   });
 }
@@ -63,7 +63,8 @@ export async function updateQRLoginSession(
 
 /**
  * Pair candidate user details with the active QR Login Session.
- * This is called by the mobile side immediately after scan — no approval needed.
+ * Uses setDoc with merge so the mobile app can pair even if the
+ * web app's session doc was not yet created (race condition guard).
  */
 export async function pairUserToQRLoginSession(
   sessionId: string,
@@ -72,15 +73,19 @@ export async function pairUserToQRLoginSession(
   jobSeekerID?: string,
 ): Promise<void> {
   const sessionRef = doc(db, "qr_sessions", sessionId);
-  await updateDoc(sessionRef, {
-    status: "paired",
-    email,
-    name,
-    displayName: name, // backwards compat
-    ...(jobSeekerID ? { jobSeekerID } : {}),
-    pairedAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
+  await setDoc(
+    sessionRef,
+    {
+      status: "paired",
+      email,
+      name,
+      displayName: name, // backwards compat
+      ...(jobSeekerID ? { jobSeekerID } : {}),
+      pairedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }, // creates the doc if missing, updates if exists
+  );
 }
 
 /** Mark QR login session as expired */
