@@ -98,7 +98,6 @@ function Landing() {
                 Start free assessment <ArrowRight className="h-4 w-4" />
               </MagneticButton>
             </Link>
-            <MagneticButton variant="secondary">Book a demo</MagneticButton>
           </div>
 
           {/* Hero product card */}
