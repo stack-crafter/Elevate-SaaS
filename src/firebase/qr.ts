@@ -2,8 +2,14 @@ import {
   doc,
   getDoc,
   setDoc,
+  deleteDoc,
   onSnapshot,
   serverTimestamp,
+  collection,
+  query,
+  where,
+  getDocs,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./config";
 
@@ -210,4 +216,87 @@ export async function getQRLoginSession(sessionId: string): Promise<QRSession | 
 
   if (!snapshot.exists()) return null;
   return snapshot.data() as QRSession;
+}
+
+// ─── Expired QR Session Cleanup ──────────────────────────────────────────────
+
+/**
+ * Deletes all QR session documents that are stale:
+ *  1. status === "expired"
+ *  2. status === "pending" / "completed" but expiresAt has passed
+ * Uses a Firestore batch write for efficiency (max 500 per batch).
+ */
+export async function cleanupExpiredQRSessions(): Promise<number> {
+  try {
+    const sessionsRef = collection(db, "qr_sessions");
+    const now = Date.now();
+
+    // Query 1: explicitly expired
+    const expiredQuery = query(sessionsRef, where("status", "==", "expired"));
+    // Query 2: pending but past TTL
+    const stalePendingQuery = query(
+      sessionsRef,
+      where("status", "==", "pending"),
+      where("expiresAt", "<", now),
+    );
+    // Query 3: completed sessions (already finished, safe to clean)
+    const completedQuery = query(sessionsRef, where("status", "==", "completed"));
+
+    const [expiredSnap, staleSnap, completedSnap] = await Promise.all([
+      getDocs(expiredQuery),
+      getDocs(stalePendingQuery),
+      getDocs(completedQuery),
+    ]);
+
+    // Deduplicate by doc ID
+    const toDelete = new Map<string, typeof expiredSnap.docs[0]>();
+    for (const d of [...expiredSnap.docs, ...staleSnap.docs, ...completedSnap.docs]) {
+      toDelete.set(d.id, d);
+    }
+
+    if (toDelete.size === 0) return 0;
+
+    // Firestore batches max out at 500 operations
+    const allDocs = Array.from(toDelete.values());
+    let deleted = 0;
+
+    for (let start = 0; start < allDocs.length; start += 500) {
+      const batch = writeBatch(db);
+      const chunk = allDocs.slice(start, start + 500);
+      chunk.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      deleted += chunk.length;
+    }
+
+    if (deleted > 0) {
+      console.info(`[QR Cleanup] Deleted ${deleted} stale QR session(s).`);
+    }
+    return deleted;
+  } catch (err) {
+    console.warn("[QR Cleanup] Failed to clean expired sessions:", err);
+    return 0;
+  }
+}
+
+let _cleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+/**
+ * Starts a background interval that deletes expired QR sessions every 30 seconds.
+ * Safe to call multiple times — only one interval will run.
+ */
+export function startQRSessionCleanup(): void {
+  if (_cleanupInterval) return; // already running
+  // Run once immediately on start
+  cleanupExpiredQRSessions();
+  _cleanupInterval = setInterval(cleanupExpiredQRSessions, 30_000);
+  console.info("[QR Cleanup] Background cleanup started (every 30s).");
+}
+
+/** Stops the background cleanup interval. */
+export function stopQRSessionCleanup(): void {
+  if (_cleanupInterval) {
+    clearInterval(_cleanupInterval);
+    _cleanupInterval = null;
+    console.info("[QR Cleanup] Background cleanup stopped.");
+  }
 }

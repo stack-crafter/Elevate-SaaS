@@ -6,6 +6,7 @@ import { tierFor, jobFor } from "@/utilities/scoring";
 import { signOut, onAuthStateChanged, getCurrentUser } from "@/data/repositories/authRepository";
 import { saveTestResult } from "@/data/repositories/testsRepository";
 import { getUserProfile } from "@/firebase/users";
+import { startQRSessionCleanup } from "@/firebase/qr";
 
 // ─── Session State Interface ──────────────────────────────────────────────────
 
@@ -267,3 +268,6 @@ onAuthStateChanged(async (user) => {
     });
   }
 });
+
+// Start background cleanup of expired QR sessions (every 30s)
+startQRSessionCleanup();
