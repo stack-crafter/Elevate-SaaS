@@ -220,49 +220,38 @@ export async function getQRLoginSession(sessionId: string): Promise<QRSession | 
 
 // ─── Expired QR Session Cleanup ──────────────────────────────────────────────
 
-/**
- * Deletes all QR session documents that are stale:
- *  1. status === "expired"
- *  2. status === "pending" / "completed" but expiresAt has passed
- * Uses a Firestore batch write for efficiency (max 500 per batch).
- */
 export async function cleanupExpiredQRSessions(): Promise<number> {
   try {
     const sessionsRef = collection(db, "qr_sessions");
+    const snapshot = await getDocs(sessionsRef);
+
+    if (snapshot.empty) return 0;
+
     const now = Date.now();
+    const toDelete: typeof snapshot.docs = [];
 
-    // Query 1: explicitly expired
-    const expiredQuery = query(sessionsRef, where("status", "==", "expired"));
-    // Query 2: pending but past TTL
-    const stalePendingQuery = query(
-      sessionsRef,
-      where("status", "==", "pending"),
-      where("expiresAt", "<", now),
-    );
-    // Query 3: completed sessions (already finished, safe to clean)
-    const completedQuery = query(sessionsRef, where("status", "==", "completed"));
+    snapshot.docs.forEach((docSnap) => {
+      const data = docSnap.data() as QRSession;
+      const status = data.status;
+      const expiresAt = data.expiresAt;
 
-    const [expiredSnap, staleSnap, completedSnap] = await Promise.all([
-      getDocs(expiredQuery),
-      getDocs(stalePendingQuery),
-      getDocs(completedQuery),
-    ]);
+      const isExpired = status === "expired";
+      const isCompleted = status === "completed";
+      const isStalePending = status === "pending" && expiresAt && expiresAt < now;
+      const hasExpiredTimestamp = expiresAt && expiresAt < now;
 
-    // Deduplicate by doc ID
-    const toDelete = new Map<string, typeof expiredSnap.docs[0]>();
-    for (const d of [...expiredSnap.docs, ...staleSnap.docs, ...completedSnap.docs]) {
-      toDelete.set(d.id, d);
-    }
+      if (isExpired || isCompleted || isStalePending || hasExpiredTimestamp) {
+        toDelete.push(docSnap);
+      }
+    });
 
-    if (toDelete.size === 0) return 0;
+    if (toDelete.length === 0) return 0;
 
-    // Firestore batches max out at 500 operations
-    const allDocs = Array.from(toDelete.values());
     let deleted = 0;
-
-    for (let start = 0; start < allDocs.length; start += 500) {
+    // Firestore batches max out at 500 operations
+    for (let start = 0; start < toDelete.length; start += 500) {
       const batch = writeBatch(db);
-      const chunk = allDocs.slice(start, start + 500);
+      const chunk = toDelete.slice(start, start + 500);
       chunk.forEach((d) => batch.delete(d.ref));
       await batch.commit();
       deleted += chunk.length;
