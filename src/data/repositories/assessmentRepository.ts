@@ -25,8 +25,9 @@ import {
  */
 function engineQuestionToAIQuestion(eq: EngineQuestion, idx: number): AIQuestion {
   const id = `q${idx + 1}`;
+  const typeLower = (eq.question_type || "").toLowerCase();
 
-  if (eq.question_type === "MCQ") {
+  if (typeLower === "mcq") {
     const optionsObj = eq.options ?? {};
     const optionsArr = ["A", "B", "C", "D"]
       .filter((k) => optionsObj[k] !== undefined)
@@ -46,7 +47,7 @@ function engineQuestionToAIQuestion(eq: EngineQuestion, idx: number): AIQuestion
     } as AIQuestion;
   }
 
-  if (eq.question_type === "theory") {
+  if (typeLower === "theory") {
     return {
       id,
       type: "theory",
@@ -63,7 +64,7 @@ function engineQuestionToAIQuestion(eq: EngineQuestion, idx: number): AIQuestion
   const lang = eq.language ?? "python";
   return {
     id,
-    type: eq.question_type === "vibe_coding" ? "vibe_coding" : "coding",
+    type: typeLower === "vibe_coding" ? "vibe_coding" : "coding",
     prompt: eq.question,
     language: lang,
     starterCode: eq.starter_code ?? `# Write your ${lang} code here\n`,

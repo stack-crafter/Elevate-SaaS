@@ -439,15 +439,21 @@ function TestPage() {
     try {
       const hasNext = await submitQuestionAndNext(i, currentAnswer);
       if (hasNext) {
-        if (i < questions.length - 1) {
+        const isEngine = !!currentQuestion?._engineSessionId;
+        if (isEngine) {
           setI(i + 1);
           setTransitioning(false);
         } else {
-          // Completed all 32 questions (fallback OpenRouter mode)
-          testEndedRef.current = true;
-          stopProctoringAndCamera();
-          await submitTest();
-          nav({ to: "/results" });
+          if (i < questions.length - 1) {
+            setI(i + 1);
+            setTransitioning(false);
+          } else {
+            // Completed all 32 questions (fallback OpenRouter mode)
+            testEndedRef.current = true;
+            stopProctoringAndCamera();
+            await submitTest();
+            nav({ to: "/results" });
+          }
         }
       } else {
         // Test ended early (either engine completed/failed, or fallback stage failed)
